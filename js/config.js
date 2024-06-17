@@ -178,24 +178,3 @@ acordes.forEach((acorde) => {
     acordes.push(`${acorde}/${baixo}`);
   });
 });
-
-const afinacoes = [
-  new Afinacao("Cebolão de D", "D", [
-    new Corda("D"),
-    new Corda("A"),
-    new Corda("F#"),
-    new Corda("D"),
-    new Corda("A"),
-  ]),
-  new Afinacao("Cebolão de E", "E", [
-    new Corda("E"),
-    new Corda("B"),
-    new Corda("G#"),
-    new Corda("E"),
-    new Corda("B"),
-  ]),
-];
-
-const afinacoesPorApelido = afinacoes.reduce((acc, cur) => {
-  return { ...acc, [cur.apelido]: cur };
-}, {});

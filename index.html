@@ -1,61 +1,33 @@
-<!doctype html>
-
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="utf-8">
-
-    <title>Tablatura de Viola</title>
-    <meta name="description" content="Tablatura de Viola">
-    <meta name="author" content="Filipe Lopes">
-
-    <link rel="stylesheet" href="css/main.css?v=1.0">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cifras de Filipe Lopes - Repositório Privado</title>
 </head>
-
 <body>
-    <main>
-        <div id="options">
-            Tem assinatura:
-            <label class="switch">
-                <input type="checkbox" id="assinatura">
-                <span class="slider round"></span>
-            </label><br /><br />
-            
-            <label for="afinacao">Afinação</label>
-            <select id="afinacao">
-            </select><br />
-
-            <label for="tom">Tom</label>
-            <button type="button" id="reduzir_meio_tom">- 1/2 tom</button><input type="text" id="tom"
-                value="E" /><button type="button" id="aumentar_meio_tom">+ 1/2
-                tom</button><br /><br />
-
-            <label for="cifras">Música</label>
-            <select id="cifras">
-            </select>
-        </div>
-
-        <h4>Tablaturas extraídas</h4>
-        <pre id="tablaturas"></pre>
-
-        <h4>Cifra Modificada</h4>
-        <pre id="cifra"></pre>
-
-        <h4>Cifra Original</h4>
-        <pre id="cifra_original"></pre>
-    </main>
-
-    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/classes/Nota.js"></script>
-    <script src="js/classes/Corda.js"></script>
-    <script src="js/classes/Afinacao.js"></script>
-    <script src="js/config.js"></script>
-    <script src="js/classes/Notacao.js"></script>
-    <script src="js/classes/Tablatura.js"></script>
-    <script src="js/classes/Cifra.js"></script>
-    <script src="js/main.js"></script>
+	<header>
+		<h1>Minhas Cifras</h1>		
+	</header>
+	<div>
+		<aside>
+			<div>
+				<h3>Eventos</h3>
+				<ul>
+					<li>Aqui vai a lista de eventos</li>
+				</ul>
+			</div>
+			<div>
+				<h3>Todas</h3>
+				<ul>
+					<li>Aqui va a lista de todoas as cifras</li>
+				</ul>
+			</div>
+		</aside>
+		<main>
+			<header><button>(-)</button> Tom:  <button>(+)</button></header>
+			<section>Aqui vai a cifra</section>
+		</main>
+	</div>
 </body>
-
 </html>
