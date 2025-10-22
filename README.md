@@ -12,6 +12,16 @@ Esse script tem por finalidade receber uma tablatura como entrada e:
 - [ ] Permitir que, ao trocar o tom da música, a tablatura se ajuste
 - [ ] Permitir a quebra de linhas para tablaturas longas serem responsivas em dispositivos móveis
 
+### Executando o projeto
+
+Para executar o servidor de desenvolvimento, use:
+
+```bash
+pnpm dev
+```
+
+Isso iniciará o live-server na porta 3000 e abrirá o index.html no navegador.
+
 ### Notações de tablatura
 
 h - hammer-on
