@@ -26,7 +26,7 @@ class Tablatura {
 
     // restaura tom original
     appState.tom = appState.tomOriginal;
-    $("#tom").val(appState.tom);
+    document.getElementById('tom').value = appState.tom;
     if (apelidoAfinacao !== appState.afinacaoOriginal) {
       afinacao.cordas.forEach((corda, cordaIndex) => {
         const numeroNotaAnterior =
@@ -400,13 +400,11 @@ class Tablatura {
         html += "</span>\n";
       });
     } else {
-      $("#tablaturas").append(
-        "Modo de renderização de tablaturas não reconhecido"
-      );
+      document.getElementById('tablaturas').innerHTML += "Modo de renderização de tablaturas não reconhecido";
     }
     html += "\n\n";
 
-    $("#tablaturas").append(html);
+    document.getElementById('tablaturas').innerHTML += html;
 
     return html;
   }

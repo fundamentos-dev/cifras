@@ -85,7 +85,7 @@ const renderDependingOnWindowSize = () => {
    * @param {int} cifraChar Número de caracteres por linha na cifra
    */
   const render = (modo, tablaturaNum, cifraChar) => {
-    $("#tablaturas").text("");
+    document.getElementById('tablaturas').textContent = "";
 
     // Verifica quem vem primeiro ordenando instancias de Cifra e Tablatura pela linha
     const instanciasTablaturaCifra = [
@@ -102,7 +102,7 @@ const renderDependingOnWindowSize = () => {
       }
     });
 
-    $("#cifra").html(cifraRenderizada);
+    document.getElementById('cifra').innerHTML = cifraRenderizada;
     return cifraRenderizada;
   };
 

@@ -1,11 +1,8 @@
-$(document).ready(function () {
+window.addEventListener('DOMContentLoaded', function () {
   // Populando select de cifras
+  let selectCifras = document.getElementById('cifras');
   bancoDeCifras.forEach((cifra, i) => {
-    $("select#cifras").append(
-      `<option value="${cifra.nome}" ${i === 0 ? "selected" : ""}>${
-        cifra.nome
-      }</option>`
-    );
+    selectCifras.innerHTML += `<option value="${cifra.nome}" ${i === 0 ? "selected" : ""}>${cifra.nome}</option>`;
   });
 
   function trocarCifra(cifra) {
@@ -17,14 +14,13 @@ $(document).ready(function () {
     appState.afinacao = cifraSelecionada.afinacao;
     appState.afinacaoOriginal = cifraSelecionada.afinacao;
 
-    $.ajax({
-      url: `examples/${cifra}.txt`,
-      dataType: "text",
-      success: function (data) {
+    fetch(`examples/${cifra}.txt`)
+      .then(response => response.text())
+      .then(data => {
         appState.cifraOriginal = data;
         appState.linhas = checkCifraLines(data);
-        $("#cifra_original").text(appState.cifraOriginal);
-        $("#cifra").text(appState.cifraOriginal);
+        document.getElementById('cifra_original').textContent = appState.cifraOriginal;
+        document.getElementById('cifra').textContent = appState.cifraOriginal;
         appState.tablaturas = Tablatura.extrairDaCifra(
           afinacoesPorApelido[appState.afinacaoOriginal],
           data
@@ -34,32 +30,30 @@ $(document).ready(function () {
           data
         );
         renderDependingOnWindowSize();
-      },
-    });
+      });
   }
 
   window.addEventListener("resize", renderDependingOnWindowSize);
 
   // Populando select de afinações
+  let selectAfinacao = document.getElementById('afinacao');
   afinacoes.forEach((afinacao) => {
-    $("select#afinacao").append(
-      `<option value="${afinacao.apelido}" ${
-        appState.afinacao === afinacao.apelido ? "selected" : ""
-      }>${afinacao.nome}</option>`
-    );
+    selectAfinacao.innerHTML += `<option value="${afinacao.apelido}" ${
+      appState.afinacao === afinacao.apelido ? "selected" : ""
+    }>${afinacao.nome}</option>`;
   });
 
   // Ao trocar campo select de cifras, popula os dados de cifras
-  $("#cifras").change((e) => trocarCifra(e.target.value));
-  $("#cifras").change();
+  document.getElementById('cifras').addEventListener('change', (e) => trocarCifra(e.target.value));
+  document.getElementById('cifras').dispatchEvent(new Event('change'));
 
   // Setando afinação inicial
-  $("select#afinacao").val(appState.afinacao);
+  document.getElementById('afinacao').value = appState.afinacao;
 
   // Regulagem de tons, preenchendo tom principal
-  $("input#tom").val(appState.tom);
+  document.getElementById('tom').value = appState.tom;
   // Alterando tom pelo botão de "Reduzir Meio Tom"
-  $("button#reduzir_meio_tom").click(() => {
+  document.getElementById('reduzir_meio_tom').addEventListener('click', () => {
     let novoTom = Object.entries(dicionarioTons).filter(
       (nota) => nota[1] === dicionarioTons[appState.tom] - 1
     );
@@ -69,14 +63,14 @@ $(document).ready(function () {
       novoTom = novoTom[0][0];
     }
     appState.tom = novoTom;
-    $("input#tom").val(diegoHackChangeBemois(appState.tom));
+    document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
     // Alterando tom e renderizando no corpo do elemento #cifra
     appState.tablaturas.forEach((tablatura) => tablatura.alterarTom());
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
   });
   // Alterando tom pelo botão de "Aumentar Meio Tom"
-  $("button#aumentar_meio_tom").click(() => {
+  document.getElementById('aumentar_meio_tom').addEventListener('click', () => {
     let novoTom = Object.entries(dicionarioTons).filter(
       (nota) => nota[1] === dicionarioTons[appState.tom] + 1
     );
@@ -86,14 +80,14 @@ $(document).ready(function () {
       novoTom = novoTom[0][0];
     }
     appState.tom = novoTom;
-    $("input#tom").val(diegoHackChangeBemois(appState.tom));
+    document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
     // Alterando tom e renderizando no corpo do elemento #cifra
     appState.tablaturas.forEach((tablatura) => tablatura.alterarTom());
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
   });
   // Alterando tom direto pela digitação
-  $("input#tom").change((e) => {
+  document.getElementById('tom').addEventListener('change', (e) => {
     let novoTom = e.target.value;
     if (Object.keys(dicionarioNotas).includes(novoTom)) {
       novoTom = Object.entries(dicionarioTons).filter(
@@ -103,7 +97,7 @@ $(document).ready(function () {
       novoTom = appState.tom;
     }
     appState.tom = novoTom;
-    $("input#tom").val(diegoHackChangeBemois(appState.tom));
+    document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
     // Alterando tom e renderizando no corpo do elemento #cifra
     appState.tablaturas.forEach((tablatura) => tablatura.alterarTom());
     appState.cifras.forEach((cifra) => cifra.alterarTom());
@@ -111,7 +105,7 @@ $(document).ready(function () {
   });
 
   // Alterando afinação pelo select
-  $("#afinacao").change((e) => {
+  document.getElementById('afinacao').addEventListener('change', (e) => {
     appState.afinacao = e.target.value;
     appState.tablaturas.forEach((tablatura) =>
       tablatura.alterarAfinacao(e.target.value)
@@ -119,7 +113,7 @@ $(document).ready(function () {
     renderDependingOnWindowSize();
   });
 
-  $("#assinatura").change(function () {
-    appState.premium = $(this).prop("checked")
+  document.getElementById('assinatura').addEventListener('change', function () {
+    appState.premium = this.checked;
   });
 });
