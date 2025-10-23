@@ -21,10 +21,6 @@ window.addEventListener('DOMContentLoaded', function () {
         appState.linhas = checkCifraLines(data);
         document.getElementById('cifra_original').textContent = appState.cifraOriginal;
         document.getElementById('cifra').textContent = appState.cifraOriginal;
-        appState.tablaturas = Tablatura.extrairDaCifra(
-          afinacoesPorApelido[appState.afinacaoOriginal],
-          data
-        );
         appState.cifras = Cifra.extrairDaCifra(
           afinacoesPorApelido[appState.afinacaoOriginal],
           data
@@ -65,7 +61,6 @@ window.addEventListener('DOMContentLoaded', function () {
     appState.tom = novoTom;
     document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
     // Alterando tom e renderizando no corpo do elemento #cifra
-    appState.tablaturas.forEach((tablatura) => tablatura.alterarTom());
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
   });
@@ -82,7 +77,6 @@ window.addEventListener('DOMContentLoaded', function () {
     appState.tom = novoTom;
     document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
     // Alterando tom e renderizando no corpo do elemento #cifra
-    appState.tablaturas.forEach((tablatura) => tablatura.alterarTom());
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
   });
@@ -99,7 +93,6 @@ window.addEventListener('DOMContentLoaded', function () {
     appState.tom = novoTom;
     document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
     // Alterando tom e renderizando no corpo do elemento #cifra
-    appState.tablaturas.forEach((tablatura) => tablatura.alterarTom());
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
   });
@@ -107,13 +100,6 @@ window.addEventListener('DOMContentLoaded', function () {
   // Alterando afinação pelo select
   document.getElementById('afinacao').addEventListener('change', (e) => {
     appState.afinacao = e.target.value;
-    appState.tablaturas.forEach((tablatura) =>
-      tablatura.alterarAfinacao(e.target.value)
-    );
     renderDependingOnWindowSize();
-  });
-
-  document.getElementById('assinatura').addEventListener('change', function () {
-    appState.premium = this.checked;
   });
 });
