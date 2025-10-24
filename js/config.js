@@ -120,7 +120,7 @@ Object.entries(dicionarioTons).forEach((tom) => {
 
 let acordes = [...Object.keys(dicionarioNotas)];
 // Adicionando variantes de notas
-const variantes = ["7", "m", "m7", "m7(b5)", "M", "maj7", "M7"];
+const variantes = ["7", "m", "m7", "m7(b5)", "M", "maj7", "M7", "dim"];
 acordes.forEach((acorde) => {
   variantes.forEach((variante) => {
     acordes.push(`${acorde}${variante}`);
