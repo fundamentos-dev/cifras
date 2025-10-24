@@ -36,29 +36,25 @@ class Cifra {
       regexLinhaEmBranco = new RegExp(/^\s*$/, "gm");
 
     const normalizeChord = (value) => {
-      const sanitized = value.replace(/[()]/g, "").trim();
+      const sanitized = value.replace(/\s+/g, "").replace(/[()]/g, "");
       if (!sanitized) {
         return "";
       }
 
-      const match = sanitized.match(
-        /^([A-Ga-g][#b]?)(.*?)(?:\/([A-Ga-g][#b]?)(.*))?$/
-      );
+      const parts = sanitized.split("/");
 
-      if (!match) {
-        return sanitized;
-      }
+      const formatPart = (part) => {
+        const match = part.match(/^([A-Ga-g])([#b]?)(.*)$/);
 
-      const [, root, rootSuffix = "", bass, bassSuffix = ""] = match;
-      const formatNote = (note) =>
-        note ? `${note[0].toUpperCase()}${note.slice(1)}` : "";
+        if (!match) {
+          return part;
+        }
 
-      const normalizedRoot = formatNote(root);
-      const normalizedBass = formatNote(bass);
+        const [, note, accidental = "", suffix = ""] = match;
+        return `${note.toUpperCase()}${accidental}${suffix}`;
+      };
 
-      return normalizedBass
-        ? `${normalizedRoot}${rootSuffix}/${normalizedBass}${bassSuffix}`
-        : `${normalizedRoot}${rootSuffix}`;
+      return parts.map(formatPart).join("/");
     };
 
     if (!this.acordesNormalizados) {
@@ -67,8 +63,12 @@ class Cifra {
       );
     }
 
+    const notaRegex = "[A-G](?:#|b)?";
+    const qualificadorRegex =
+      "(?:add|sus|maj|min|dim|aug|m|M|dom|alt|omit|no|[#b+°º-]|\\d+)";
     const strictChordRegex = new RegExp(
-      /^[A-G](?:#|b)?(?:m7b5|m7|maj7|M7|m|M|7|dim)?(?:\/[A-G](?:#|b)?)?$/
+      `^${notaRegex}(?:${qualificadorRegex})*(?:/${notaRegex}(?:${qualificadorRegex})*)*$`,
+      "i"
     );
 
     const isAcordeValido = (tokens) => {
@@ -85,6 +85,9 @@ class Cifra {
         }
 
         const normalizedToken = normalizeChord(trimmedToken);
+        if (!normalizedToken) {
+          return false;
+        }
         const isKnownChord = this.acordesNormalizados.has(normalizedToken);
         const matchesStrictRegex = strictChordRegex.test(normalizedToken);
 
@@ -130,7 +133,6 @@ class Cifra {
             !isLinhaCifra(cifraByLine[index + i]) &&
             isLinhaTexto(cifraByLine[index + i])
           ) {
-            console.log(linha, index)
             if (!cifra.linhaUmLetra) {
               cifra.linhaUmLetra = cifraByLine[index + i];
             } else if (cifra.linhaUmLetra && !cifra.linhaDoisLetra) {
@@ -174,7 +176,6 @@ class Cifra {
       }
     });
 
-    console.log(cifras);
     return cifras;
   }
 
