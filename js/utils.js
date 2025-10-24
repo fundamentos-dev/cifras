@@ -40,27 +40,3 @@ const getLinhaByCharIndex = (charIndex) => {
   return linha[0].order;
 };
 
-// Captura qualquer nota com bemois e transforma em sustenidos
-const diegoHackChangeBemois = (string) => {
-  const map = {
-    Cb: "B",
-    Db: "C#",
-    Eb: "D#",
-    Fb: "E",
-    Gb: "F#",
-    Ab: "G#",
-    Bb: "A#",
-  };
-
-  let result = string;
-  if (string) {
-    Object.entries(map).forEach((note) => {
-      if (string.includes(note[0])) {
-        result = string.replace(note[0], note[1]);
-      }
-    });
-  }
-
-  console.log(string, result);
-  return result;
-};

@@ -59,7 +59,7 @@ window.addEventListener('DOMContentLoaded', function () {
       novoTom = novoTom[0][0];
     }
     appState.tom = novoTom;
-    document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
+    document.getElementById('tom').value = appState.tom;
     // Alterando tom e renderizando no corpo do elemento #cifra
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
@@ -75,7 +75,7 @@ window.addEventListener('DOMContentLoaded', function () {
       novoTom = novoTom[0][0];
     }
     appState.tom = novoTom;
-    document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
+    document.getElementById('tom').value = appState.tom;
     // Alterando tom e renderizando no corpo do elemento #cifra
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
@@ -91,7 +91,7 @@ window.addEventListener('DOMContentLoaded', function () {
       novoTom = appState.tom;
     }
     appState.tom = novoTom;
-    document.getElementById('tom').value = diegoHackChangeBemois(appState.tom);
+    document.getElementById('tom').value = appState.tom;
     // Alterando tom e renderizando no corpo do elemento #cifra
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderDependingOnWindowSize();
