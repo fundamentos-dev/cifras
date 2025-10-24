@@ -2,23 +2,24 @@ let bancoDeCifras = [
   {
     tom: "D",
     nome: "harpa_crista_alvo_mais_que_a_neve",
-    afinacao: "E",
   },
   {
     tom: "C",
     nome: "grupo_logos_autor_da_minha_fe",
-    afinacao: "E",
   },
 ];
 
 let appState = {
   tom: "D",
   tomOriginal: "D",
-  afinacao: "E",
-  afinacaoOriginal: "E",
   cifras: [],
-  cifraOriginal: "", // Útil para reconhecimento de padrões na hora de fazer a substituição
+  cifraOriginal: "",
   linhas: [],
+  modo: "cifra",
+  slides: [],
+  currentSlideIndex: 0,
+  fontScale: 1,
+  columnLayout: "1",
 };
 
 const checkCifraLines = (cifra) => {
@@ -38,14 +39,7 @@ const checkCifraLines = (cifra) => {
   return linesDescription;
 };
 
-const renderDependingOnWindowSize = () => {
-  // Get width and height of the window excluding scrollbars
-
-  /**
-   *
-   * @param {string} modo "mobile" ou "desktop" para controlar as quebras
-   * @param {int} cifraChar Número de caracteres por linha na cifra
-   */
+const renderCifraView = () => {
   const render = (modo = "desktop", cifraChar = 32) => {
     const cifrasOrdenadas = appState.cifras
       .slice()
@@ -56,7 +50,7 @@ const renderDependingOnWindowSize = () => {
       cifraRenderizada += instancia.render(modo, cifraChar);
     });
 
-    document.getElementById('cifra').innerHTML = cifraRenderizada;
+    document.getElementById("cifra").innerHTML = cifraRenderizada;
     return cifraRenderizada;
   };
 
@@ -68,6 +62,59 @@ const renderDependingOnWindowSize = () => {
   } else {
     render();
   }
+};
+
+const parseSlidesFromText = (texto) => {
+  const linhas = texto.split(/\r?\n/);
+  const secoes = [];
+  let secaoAtual = null;
+
+  const pushSecao = () => {
+    if (!secaoAtual) {
+      return;
+    }
+    const possuiConteudo = secaoAtual.linhas.some((linha) => linha.trim().length);
+    if (secaoAtual.titulo || possuiConteudo) {
+      secoes.push({
+        titulo: secaoAtual.titulo,
+        linhas: secaoAtual.linhas.slice(),
+      });
+    }
+  };
+
+  linhas.forEach((linha) => {
+    const tituloMatch = linha.match(/^\s*\[(.+?)\]\s*$/);
+    if (tituloMatch) {
+      if (secaoAtual) {
+        pushSecao();
+      }
+      secaoAtual = {
+        titulo: tituloMatch[1].trim(),
+        linhas: [],
+      };
+    } else {
+      if (!secaoAtual) {
+        secaoAtual = {
+          titulo: "",
+          linhas: [],
+        };
+      }
+      secaoAtual.linhas.push(linha);
+    }
+  });
+
+  pushSecao();
+
+  if (!secoes.length && texto.trim().length) {
+    return [
+      {
+        titulo: "Letra",
+        linhas: linhas,
+      },
+    ];
+  }
+
+  return secoes;
 };
 
 /**
@@ -102,14 +149,14 @@ let dicionarioTons = {
   C: 1,
   "C#": 2,
   D: 3,
-  "Eb": 4,
+  Eb: 4,
   E: 5,
   F: 6,
   "F#": 7,
   G: 8,
-  "Ab": 9,
+  Ab: 9,
   A: 10,
-  "Bb": 11,
+  Bb: 11,
   B: 12,
 };
 
@@ -132,24 +179,3 @@ acordes.forEach((acorde) => {
     acordes.push(`${acorde}/${baixo}`);
   });
 });
-
-const afinacoes = [
-  new Afinacao("Cebolão de D", "D", [
-    new Corda("D"),
-    new Corda("A"),
-    new Corda("F#"),
-    new Corda("D"),
-    new Corda("A"),
-  ]),
-  new Afinacao("Cebolão de E", "E", [
-    new Corda("E"),
-    new Corda("B"),
-    new Corda("G#"),
-    new Corda("E"),
-    new Corda("B"),
-  ]),
-];
-
-const afinacoesPorApelido = afinacoes.reduce((acc, cur) => {
-  return { ...acc, [cur.apelido]: cur };
-}, {});

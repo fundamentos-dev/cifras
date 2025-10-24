@@ -1,49 +1,79 @@
 <!doctype html>
-
-<html lang="en">
-
+<html lang="pt-BR">
 <head>
-    <meta charset="utf-8">
-
-    <title>Repositório Pessoal de Letras e Cifras - SelfHosted</title>
-    <meta name="description" content="Repositório Pessoal de Letras e Cifras - SelfHosted">
-    <meta name="author" content="Filipe Lopes">
-
-    <link rel="stylesheet" href="css/main.css?v=1.0">
-
+  <meta charset="utf-8">
+  <title>Repositório Pessoal de Letras e Cifras - SelfHosted</title>
+  <meta name="description" content="Repositório Pessoal de Letras e Cifras - SelfHosted">
+  <meta name="author" content="Filipe Lopes">
+  <link rel="stylesheet" href="css/main.css?v=1.0">
 </head>
-
 <body>
-    <main>
-        <div id="options">
-            <label for="afinacao">Afinação</label>
-            <select id="afinacao">
-            </select><br />
-
-            <label for="tom">Tom</label>
-            <button type="button" id="reduzir_meio_tom">- 1/2 tom</button><input type="text" id="tom"
-                value="E" /><button type="button" id="aumentar_meio_tom">+ 1/2
-                tom</button><br /><br />
-
-            <label for="cifras">Música</label>
-            <select id="cifras">
-            </select>
-        </div>
-
+  <main>
+    <div id="display">
+      <section id="cifra_view" aria-label="Visualização de cifras">
         <h4>Cifra Modificada</h4>
         <pre id="cifra"></pre>
-
         <h4>Cifra Original</h4>
         <pre id="cifra_original"></pre>
-    </main>
+      </section>
+      <section id="letra_view" class="hidden" aria-label="Apresentação de letras">
+        <div class="slide-controls">
+          <button type="button" id="prev_slide" class="slide-button" aria-label="Slide anterior">&#8592;</button>
+          <div class="slide-meta">
+            <span id="slide_title"></span>
+            <span id="slide_position"></span>
+          </div>
+          <button type="button" id="next_slide" class="slide-button" aria-label="Próximo slide">&#8594;</button>
+        </div>
+        <div id="slide_content" class="slide-content"></div>
+      </section>
+    </div>
+  </main>
 
-    <script src="js/utils.js"></script>
-    <script src="js/classes/Nota.js"></script>
-    <script src="js/classes/Corda.js"></script>
-    <script src="js/classes/Afinacao.js"></script>
-    <script src="js/config.js"></script>
-    <script src="js/classes/Cifra.js"></script>
-    <script src="js/main.js"></script>
+  <div id="control-panel" class="collapsed" aria-live="polite">
+    <button id="panel-toggle" type="button" aria-expanded="false">Mostrar controles</button>
+    <div class="controls-inner">
+      <div class="control-group">
+        <span class="control-label">Modo</span>
+        <div class="mode-switch">
+          <button type="button" id="modo_cifra" class="mode-button active">Cifra</button>
+          <button type="button" id="modo_letra" class="mode-button">Letra</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label for="cifras" class="control-label">Música</label>
+        <select id="cifras"></select>
+      </div>
+      <div id="tone_controls" class="control-group">
+        <label for="tom" class="control-label">Tom</label>
+        <div class="tone-buttons">
+          <button type="button" id="reduzir_meio_tom">- 1/2 tom</button>
+          <input type="text" id="tom" value="E" aria-label="Tom atual" />
+          <button type="button" id="aumentar_meio_tom">+ 1/2 tom</button>
+        </div>
+      </div>
+      <div id="letra_controls" class="control-group hidden">
+        <span class="control-label">Apresentação</span>
+        <div class="presentation-options">
+          <label for="column_layout">Colunas</label>
+          <select id="column_layout">
+            <option value="1">Uma</option>
+            <option value="2">Duas</option>
+          </select>
+          <div class="font-controls" role="group" aria-label="Tamanho da fonte">
+            <button type="button" id="decrease_font" aria-label="Diminuir fonte">A-</button>
+            <span id="font_size_value">100%</span>
+            <button type="button" id="increase_font" aria-label="Aumentar fonte">A+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/classes/Nota.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/classes/Cifra.js"></script>
+  <script src="js/main.js"></script>
 </body>
-
 </html>
