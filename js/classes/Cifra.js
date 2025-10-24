@@ -19,7 +19,9 @@ class Cifra {
     this.linhaCifraOriginal = linhaCifra || "";
     this.linhaCifra = linhaCifra || "";
     this.linhaCifraMobile = linhaCifra || "";
+    this.linhaUmLetraOriginal = linhaUmLetra || "";
     this.linhaUmLetra = linhaUmLetra || "";
+    this.linhaDoisLetraOriginal = linhaDoisLetra || "";
     this.linhaDoisLetra = linhaDoisLetra || "";
     this.linhaUmLetraMobile = linhaUmLetra || "";
     this.linhaDoisLetraMobile = linhaDoisLetra || "";
@@ -135,8 +137,10 @@ class Cifra {
           ) {
             if (!cifra.linhaUmLetra) {
               cifra.linhaUmLetra = cifraByLine[index + i];
+              cifra.linhaUmLetraOriginal = cifra.linhaUmLetra;
             } else if (cifra.linhaUmLetra && !cifra.linhaDoisLetra) {
               cifra.linhaDoisLetra = cifraByLine[index + i];
+              cifra.linhaDoisLetraOriginal = cifra.linhaDoisLetra;
             } else {
               encontrouFim = true;
               break;
@@ -405,9 +409,101 @@ class Cifra {
       "g"
     );
 
-    this.linhaCifra = this.linhaCifraOriginal;
-    this.linhaCifra = this.linhaCifra.replace(regexNotaIndividual, (m) =>
-      Cifra.alteraNota(m, variacaoTom)
-    );
+    const chordLine = this.linhaCifraOriginal || "";
+    const chordChars = Array.from(chordLine);
+    const lyricOneChars = this.linhaUmLetraOriginal
+      ? Array.from(this.linhaUmLetraOriginal)
+      : [];
+    const lyricTwoChars = this.linhaDoisLetraOriginal
+      ? Array.from(this.linhaDoisLetraOriginal)
+      : [];
+
+    const ensureLength = (array, targetLength) => {
+      if (!array) {
+        return;
+      }
+      while (array.length < targetLength) {
+        array.push(" ");
+      }
+    };
+
+    const findInsertPosition = (array, position) => {
+      if (!array || array.length === 0) {
+        return 0;
+      }
+      if (position >= array.length) {
+        return array.length;
+      }
+      for (let i = position; i < array.length; i++) {
+        if (array[i] === " ") {
+          return i;
+        }
+      }
+      return array.length;
+    };
+
+    const insertSpaces = (array, position, count) => {
+      if (!array || count <= 0) {
+        return;
+      }
+      ensureLength(array, position);
+      const insertPosition = findInsertPosition(array, position);
+      const spaces = new Array(count).fill(" ");
+      array.splice(insertPosition, 0, ...spaces);
+    };
+
+    const chordTokens = [...chordLine.matchAll(/\S+/g)];
+    let offset = 0;
+
+    chordTokens.forEach((token, index) => {
+      const originalStart = token.index || 0;
+      const start = originalStart + offset;
+      const originalChord = token[0];
+      const transposedChord = originalChord.replace(
+        regexNotaIndividual,
+        (nota) => Cifra.alteraNota(nota, variacaoTom)
+      );
+
+      const diff = transposedChord.length - originalChord.length;
+      const replacement = [
+        ...transposedChord.split(""),
+        ...new Array(Math.max(0, -diff)).fill(" "),
+      ];
+
+      chordChars.splice(start, originalChord.length, ...replacement);
+
+      if (diff > 0) {
+        const shiftPosition = start + originalChord.length;
+        insertSpaces(lyricOneChars, shiftPosition, diff);
+        insertSpaces(lyricTwoChars, shiftPosition, diff);
+        offset += diff;
+      }
+
+      const end = start + replacement.length;
+      const nextToken = chordTokens[index + 1];
+      if (nextToken) {
+        const nextStart = (nextToken.index || 0) + offset;
+        const gap = nextStart - end;
+        if (gap < 1) {
+          const spacesToInsert = 1 - gap;
+          const spaces = new Array(spacesToInsert).fill(" ");
+          chordChars.splice(end, 0, ...spaces);
+          insertSpaces(lyricOneChars, end, spacesToInsert);
+          insertSpaces(lyricTwoChars, end, spacesToInsert);
+          offset += spacesToInsert;
+        }
+      }
+    });
+
+    const joinAndTrim = (chars) =>
+      chars.length ? chars.join("").replace(/\s+$/, "") : "";
+
+    this.linhaCifra = joinAndTrim(chordChars);
+    this.linhaUmLetra = this.linhaUmLetraOriginal
+      ? joinAndTrim(lyricOneChars)
+      : this.linhaUmLetraOriginal;
+    this.linhaDoisLetra = this.linhaDoisLetraOriginal
+      ? joinAndTrim(lyricTwoChars)
+      : this.linhaDoisLetraOriginal;
   }
 }
