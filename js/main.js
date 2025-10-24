@@ -18,6 +18,11 @@ window.addEventListener("DOMContentLoaded", () => {
   const slideTitle = document.getElementById("slide_title");
   const slidePosition = document.getElementById("slide_position");
   const slideContent = document.getElementById("slide_content");
+  const toggleOriginal = document.getElementById("toggle-original");
+  const cifraOriginal = document.getElementById("cifra_original");
+
+  // Default collapsed
+  cifraOriginal.classList.add("collapsed-original");
 
   const BASE_SLIDE_FONT_SIZE = 1.4;
 
@@ -172,6 +177,11 @@ window.addEventListener("DOMContentLoaded", () => {
     const isCollapsed = controlPanel.classList.contains("collapsed");
     panelToggle.textContent = isCollapsed ? "Mostrar controles" : "Ocultar controles";
     panelToggle.setAttribute("aria-expanded", (!isCollapsed).toString());
+  });
+
+  toggleOriginal.addEventListener("click", () => {
+    const isCollapsed = cifraOriginal.classList.toggle("collapsed-original");
+    toggleOriginal.textContent = isCollapsed ? "Mostrar mais" : "Mostrar menos";
   });
 
   modoCifraButton.addEventListener("click", () => {
