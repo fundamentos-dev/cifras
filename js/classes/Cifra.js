@@ -19,6 +19,81 @@ class Cifra {
     this.fimParagrafo = fimParagrafo || false;
   }
 
+  static normalizarAcorde(valor) {
+    const sanitized = valor.replace(/\s+/g, "").replace(/[()]/g, "");
+    if (!sanitized) {
+      return "";
+    }
+
+    const parts = sanitized.split("/");
+    const formatPart = (part) => {
+      const match = part.match(/^([A-Ga-g])([#b]?)(.*)$/);
+      if (!match) {
+        return part;
+      }
+      const [, note, accidental = "", suffix = ""] = match;
+      return `${note.toUpperCase()}${accidental}${suffix}`;
+    };
+
+    return parts.map(formatPart).join("/");
+  }
+
+  static garantirDicionarios() {
+    if (!Cifra.acordesNormalizados) {
+      Cifra.acordesNormalizados = new Set(
+        acordes.map((acorde) => Cifra.normalizarAcorde(acorde))
+      );
+    }
+
+    if (!Cifra.strictChordRegex) {
+      const notaRegex = "[A-G](?:#|b)?";
+      const qualificadorRegex =
+        "(?:add|sus|maj|min|dim|aug|m|M|dom|alt|omit|no|[#b+°º-]|\\d+)";
+      Cifra.strictChordRegex = new RegExp(
+        `^${notaRegex}(?:${qualificadorRegex})*(?:/${notaRegex}(?:${qualificadorRegex})*)*$`,
+        "i"
+      );
+    }
+  }
+
+  static isAcordeValido(tokens) {
+    if (!tokens.length) {
+      return false;
+    }
+
+    Cifra.garantirDicionarios();
+    let acordesIdentificados = 0;
+
+    const allTokensValid = tokens.every((token) => {
+      const trimmedToken = token.trim();
+      if (!trimmedToken.length) {
+        return false;
+      }
+
+      const normalizedToken = Cifra.normalizarAcorde(trimmedToken);
+      if (!normalizedToken) {
+        return false;
+      }
+
+      const isKnownChord = Cifra.acordesNormalizados.has(normalizedToken);
+      const matchesStrictRegex = Cifra.strictChordRegex.test(normalizedToken);
+
+      if (isKnownChord || matchesStrictRegex) {
+        acordesIdentificados++;
+        return true;
+      }
+
+      return false;
+    });
+
+    return allTokensValid && acordesIdentificados > 0;
+  }
+
+  static isLinhaCifra(linha) {
+    const tokens = linha.trim().split(/\s+/).filter(Boolean);
+    return Cifra.isAcordeValido(tokens);
+  }
+
   static extrairDaCifra(cifra) {
     let cifras = [];
     const cifraByLine = cifra.split("\n"),
@@ -26,78 +101,6 @@ class Cifra {
         /[1-9A-Za-záàâãéèêíïóôõöúçñÁÀÂÃÉÈÍÏÓÔÕÖÚÇÑ:" ]+/, "gi"
       ),
       regexLinhaEmBranco = new RegExp(/^\s*$/, "gm");
-
-    const normalizeChord = (value) => {
-      const sanitized = value.replace(/\s+/g, "").replace(/[()]/g, "");
-      if (!sanitized) {
-        return "";
-      }
-
-      const parts = sanitized.split("/");
-
-      const formatPart = (part) => {
-        const match = part.match(/^([A-Ga-g])([#b]?)(.*)$/);
-
-        if (!match) {
-          return part;
-        }
-
-        const [, note, accidental = "", suffix = ""] = match;
-        return `${note.toUpperCase()}${accidental}${suffix}`;
-      };
-
-      return parts.map(formatPart).join("/");
-    };
-
-    if (!this.acordesNormalizados) {
-      this.acordesNormalizados = new Set(
-        acordes.map((acorde) => normalizeChord(acorde))
-      );
-    }
-
-    const notaRegex = "[A-G](?:#|b)?";
-    const qualificadorRegex =
-      "(?:add|sus|maj|min|dim|aug|m|M|dom|alt|omit|no|[#b+°º-]|\\d+)";
-    const strictChordRegex = new RegExp(
-      `^${notaRegex}(?:${qualificadorRegex})*(?:/${notaRegex}(?:${qualificadorRegex})*)*$`,
-      "i"
-    );
-
-    const isAcordeValido = (tokens) => {
-      if (!tokens.length) {
-        return false;
-      }
-
-      let acordesIdentificados = 0;
-
-      const allTokensValid = tokens.every((token) => {
-        const trimmedToken = token.trim();
-        if (!trimmedToken.length) {
-          return false;
-        }
-
-        const normalizedToken = normalizeChord(trimmedToken);
-        if (!normalizedToken) {
-          return false;
-        }
-        const isKnownChord = this.acordesNormalizados.has(normalizedToken);
-        const matchesStrictRegex = strictChordRegex.test(normalizedToken);
-
-        if (isKnownChord || matchesStrictRegex) {
-          acordesIdentificados++;
-          return true;
-        }
-
-        return false;
-      });
-
-      return allTokensValid && acordesIdentificados > 0;
-    };
-
-    const isLinhaCifra = (linha) => {
-      const tokens = linha.trim().split(/\s+/).filter(Boolean);
-      return isAcordeValido(tokens);
-    };
 
     const isLinhaBranco = (linha) => Boolean(linha.match(regexLinhaEmBranco));
 
@@ -110,7 +113,7 @@ class Cifra {
         let i = 0,
           encontrouFim = false;
 
-        if (isLinhaCifra(linha)) {
+        if (Cifra.isLinhaCifra(linha)) {
           cifra.linhaCifra = linha;
           cifra.linhaCifraOriginal = linha;
         }
@@ -119,7 +122,7 @@ class Cifra {
           if (
             cifraByLine[index + i] &&
             typeof cifraByLine[index + i] !== "undefined" &&
-            !isLinhaCifra(cifraByLine[index + i]) &&
+            !Cifra.isLinhaCifra(cifraByLine[index + i]) &&
             isLinhaTexto(cifraByLine[index + i])
           ) {
             if (!cifra.linhaUmLetra) {
@@ -136,7 +139,7 @@ class Cifra {
 
           if (
             typeof cifraByLine[index + i] !== "undefined" &&
-            !isLinhaCifra(cifraByLine[index + i]) &&
+            !Cifra.isLinhaCifra(cifraByLine[index + i]) &&
             isLinhaBranco(cifraByLine[index + i])
           ) {
             cifra.fimParagrafo = true;
@@ -148,7 +151,7 @@ class Cifra {
             i !== 0 &&
             cifraByLine[index + i] &&
             typeof cifraByLine[index + i] !== "undefined" &&
-            isLinhaCifra(cifraByLine[index + i])
+            Cifra.isLinhaCifra(cifraByLine[index + i])
           ) {
             encontrouFim = true;
             break;
@@ -370,4 +373,112 @@ class Cifra {
       }
     }
   };
+
+  alterarTom() {
+    const numeroTomOriginal = dicionarioTons[appState.tomOriginal],
+      numeroTomAtual = dicionarioTons[appState.tom],
+      variacaoTom = numeroTomAtual - numeroTomOriginal;
+
+    const regexNotaIndividual = new RegExp(
+      /(Ab|A#|A|Bb|B#|B|Cb|C#|C|Db|D#|D|Eb|E#|E|Fb|F#|F|Gb|G#|G|A)/,
+      "g"
+    );
+
+    const chordLine = this.linhaCifraOriginal || "";
+    const chordChars = Array.from(chordLine);
+    const lyricOneChars = this.linhaUmLetraOriginal
+      ? Array.from(this.linhaUmLetraOriginal)
+      : [];
+    const lyricTwoChars = this.linhaDoisLetraOriginal
+      ? Array.from(this.linhaDoisLetraOriginal)
+      : [];
+
+    const ensureLength = (array, targetLength) => {
+      if (!array) {
+        return;
+      }
+      while (array.length < targetLength) {
+        array.push(" ");
+      }
+    };
+
+    const findInsertPosition = (array, position) => {
+      if (!array || array.length === 0) {
+        return 0;
+      }
+      if (position >= array.length) {
+        return array.length;
+      }
+      for (let i = position; i < array.length; i++) {
+        if (array[i] === " ") {
+          return i;
+        }
+      }
+      return array.length;
+    };
+
+    const insertSpaces = (array, position, count) => {
+      if (!array || count <= 0) {
+        return;
+      }
+      ensureLength(array, position);
+      const insertPosition = findInsertPosition(array, position);
+      const spaces = new Array(count).fill(" ");
+      array.splice(insertPosition, 0, ...spaces);
+    };
+
+    const chordTokens = [...chordLine.matchAll(/\S+/g)];
+    let offset = 0;
+
+    chordTokens.forEach((token, index) => {
+      const originalStart = token.index || 0;
+      const start = originalStart + offset;
+      const originalChord = token[0];
+      const transposedChord = originalChord.replace(
+        regexNotaIndividual,
+        (nota) => Cifra.alteraNota(nota, variacaoTom)
+      );
+
+      const diff = transposedChord.length - originalChord.length;
+      const replacement = [
+        ...transposedChord.split(""),
+        ...new Array(Math.max(0, -diff)).fill(" "),
+      ];
+
+      chordChars.splice(start, originalChord.length, ...replacement);
+
+      if (diff > 0) {
+        const shiftPosition = start + originalChord.length;
+        insertSpaces(lyricOneChars, shiftPosition, diff);
+        insertSpaces(lyricTwoChars, shiftPosition, diff);
+        offset += diff;
+      }
+
+      const end = start + replacement.length;
+      const nextToken = chordTokens[index + 1];
+      if (nextToken) {
+        const nextStart = (nextToken.index || 0) + offset;
+        const gap = nextStart - end;
+        if (gap < 1) {
+          const spacesToInsert = 1 - gap;
+          const spaces = new Array(spacesToInsert).fill(" ");
+          chordChars.splice(end, 0, ...spaces);
+          insertSpaces(lyricOneChars, end, spacesToInsert);
+          insertSpaces(lyricTwoChars, end, spacesToInsert);
+          offset += spacesToInsert;
+        }
+      }
+    });
+
+    const joinAndTrim = (chars) =>
+      chars.length ? chars.join("").replace(/\s+$/, "") : "";
+
+    this.linhaCifra = joinAndTrim(chordChars);
+    this.linhaUmLetra = this.linhaUmLetraOriginal
+      ? joinAndTrim(lyricOneChars)
+      : this.linhaUmLetraOriginal;
+    this.linhaDoisLetra = this.linhaDoisLetraOriginal
+      ? joinAndTrim(lyricTwoChars)
+      : this.linhaDoisLetraOriginal;
+  }
 }

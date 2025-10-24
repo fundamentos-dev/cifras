@@ -69,10 +69,20 @@ const parseSlidesFromText = (texto) => {
   const secoes = [];
   let secaoAtual = null;
 
+  const limparExtremidadesVazias = (lista) => {
+    while (lista.length && !lista[0].trim().length) {
+      lista.shift();
+    }
+    while (lista.length && !lista[lista.length - 1].trim().length) {
+      lista.pop();
+    }
+  };
+
   const pushSecao = () => {
     if (!secaoAtual) {
       return;
     }
+    limparExtremidadesVazias(secaoAtual.linhas);
     const possuiConteudo = secaoAtual.linhas.some((linha) => linha.trim().length);
     if (secaoAtual.titulo || possuiConteudo) {
       secoes.push({
@@ -99,7 +109,11 @@ const parseSlidesFromText = (texto) => {
           linhas: [],
         };
       }
-      secaoAtual.linhas.push(linha);
+      if (Cifra.isLinhaCifra(linha)) {
+        return;
+      }
+      const linhaTratada = linha.replace(/\s+$/, "");
+      secaoAtual.linhas.push(linhaTratada);
     }
   });
 

@@ -40,8 +40,8 @@ pre {
 
 #cifra span {
   background: rgba(255, 183, 3, 0.3);
-  border-radius: 4px;
-  padding: 0 2px;
+  border-radius: 8px;
+  padding: 0 8px;
 }
 
 .hidden {
@@ -61,16 +61,16 @@ pre {
   justify-content: center;
   gap: 24px;
   background: #1f1f1f;
-  padding: 12px 16px;
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .slide-meta {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   min-width: 160px;
   text-align: center;
 }
@@ -81,7 +81,7 @@ pre {
   color: #0b0c0e;
   font-size: 1.5rem;
   line-height: 1;
-  padding: 12px 18px;
+  padding: 16px;
   border-radius: 50%;
   cursor: pointer;
 }
@@ -108,7 +108,7 @@ pre {
 }
 
 .slide-content p {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   break-inside: avoid;
 }
 
@@ -124,7 +124,7 @@ pre {
   background: var(--panel-background);
   color: var(--panel-text);
   border-top: 1px solid var(--panel-border);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
   transition: transform 0.3s ease-in-out;
   z-index: 10;
 }
@@ -138,7 +138,7 @@ pre {
   background: transparent;
   color: var(--panel-text);
   border: none;
-  padding: 14px 20px;
+  padding: 16px 24px;
   font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -150,7 +150,7 @@ pre {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 16px 20px 24px;
+  padding: 16px 24px 24px;
   border-top: 1px solid var(--panel-border);
 }
 
@@ -175,8 +175,8 @@ pre {
 
 .mode-button {
   flex: 1;
-  padding: 10px 12px;
-  border-radius: 20px;
+  padding: 8px 16px;
+  border-radius: 24px;
   border: 1px solid var(--panel-border);
   background: transparent;
   color: var(--panel-text);
@@ -199,7 +199,7 @@ button {
 
 select,
 input[type="text"] {
-  padding: 8px 10px;
+  padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid var(--panel-border);
   background: #2b2c2f;
@@ -224,7 +224,7 @@ button:focus {
   background: var(--panel-accent);
   border: none;
   color: #101112;
-  padding: 8px 12px;
+  padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
@@ -238,7 +238,7 @@ button:focus {
 .presentation-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
 }
 
@@ -247,8 +247,8 @@ button:focus {
   align-items: center;
   gap: 8px;
   background: #2b2c2f;
-  border-radius: 20px;
-  padding: 6px 12px;
+  border-radius: 24px;
+  padding: 8px 16px;
 }
 
 .font-controls button {
@@ -265,7 +265,7 @@ button:focus {
 
 @media (max-width: 720px) {
   main {
-    padding: 20px 12px 200px;
+    padding: 24px 16px 200px;
   }
 
   .controls-inner {
@@ -277,7 +277,7 @@ button:focus {
   }
 
   .slide-content {
-    padding: 20px;
+    padding: 24px;
     font-size: calc(var(--slide-font-size) * 0.9);
   }
 
