@@ -184,7 +184,7 @@ class Cifra {
     if (modo === "desktop") {
       if (this.linhaCifra) {
         let tmpCifraHtml = this.linhaCifra.replace(
-          new RegExp(/[ABCDEFG]([\w#()]{1,7})?/, "g"),
+          new RegExp(/[ABCDEFG]([\w#()+-]{1,7})?/, "g"),
           (string) => `<span class='cifra'>${string}</span>`
         );
         html += `${tmpCifraHtml}\n`;
@@ -306,7 +306,7 @@ class Cifra {
       for (let i = 0; i < partesMaiores.length; i++) {
         if (this.linhaCifraMobile[i]) {
           let tmpCifraHtml = this.linhaCifraMobile[i].replace(
-            new RegExp(/[ABCDEFG]([\w#()]{1,7})?/, "g"),
+            new RegExp(/[ABCDEFG]([\w#()+-]{1,7})?/, "g"),
             "<span class='cifra'>$&</span>"
           );
           html += `${tmpCifraHtml}\n`;
