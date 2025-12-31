@@ -3,7 +3,8 @@
   --panel-text: #f1f3f4;
   --panel-accent: #8ab4f8;
   --panel-border: #3c4043;
-  --slide-font-size: 1.4rem;
+  --slide-font-size: 3.5rem;
+  --slide-line-height: 1.5;
 }
 
 body {
@@ -56,72 +57,276 @@ pre {
   display: none;
 }
 
+/* Search UI */
+.floating-button {
+  position: fixed;
+  right: 24px;
+  z-index: 100;
+  background: var(--panel-accent);
+  color: #0b0c0e;
+  border: none;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: transform 0.2s, opacity 0.3s;
+}
+
+#search-trigger {
+  top: 24px;
+}
+
+#fullscreen-trigger {
+  top: 96px; /* 24px + 56px + 16px gap */
+}
+
+.floating-button:hover {
+  transform: scale(1.05);
+}
+
+#search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(18, 18, 18, 0.95);
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(5px);
+}
+
+.search-container {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  height: 80vh;
+}
+
+.search-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+#search-input {
+  flex: 1;
+  font-size: 1.2rem;
+  padding: 16px;
+  background: #2b2c2f;
+  border: 1px solid var(--panel-border);
+  color: #fff;
+  border-radius: 8px;
+}
+
+#close-search {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 16px;
+}
+
+#search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-result-item {
+  background: #2b2c2f;
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-result-item:hover {
+  background: #3c4043;
+}
+
+.result-title {
+  font-weight: bold;
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 4px;
+  color: var(--panel-accent);
+}
+
+.result-snippet {
+  font-size: 0.9rem;
+  color: #9aa0a6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Presentation Mode Adjustments */
 #letra_view {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 320px;
+  /* Full screen capability */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: #121212;
+  padding: 0;
+  margin: 0;
 }
 
 .slide-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* Let clicks pass through to content if needed, but buttons need pointer-events: auto */
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  gap: 24px;
-  background: #1f1f1f;
-  padding: 16px;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-}
-
-.slide-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  min-width: 160px;
-  text-align: center;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .slide-button {
-  background: var(--panel-accent);
-  border: none;
-  color: #0b0c0e;
-  font-size: 1.5rem;
-  line-height: 1;
-  padding: 16px;
-  border-radius: 50%;
-  cursor: pointer;
+  pointer-events: auto;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 3rem;
+  height: 100%;
+  width: 80px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s, color 0.3s;
+}
+
+.slide-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .slide-button:disabled {
-  background: #3c4043;
-  color: #9aa0a6;
-  cursor: not-allowed;
+  color: transparent;
+  background: transparent;
+  cursor: default;
 }
 
-.slide-content {
-  background: #1e1e1e;
-  border-radius: 16px;
-  padding: 24px;
-  min-height: 360px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+.slide-meta {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  pointer-events: auto;
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+
+.slide-meta:hover {
+  opacity: 1;
+}
+
+#slide_content {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 40px 80px 80px; /* Space for buttons and meta */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* Center alignment by default */
+  align-items: center; 
+  text-align: center;
+  overflow-y: auto;
+  background: #121212;
+  box-shadow: none;
+  border-radius: 0;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+#slide_content p {
   font-size: var(--slide-font-size);
-  line-height: 1.6;
-  column-gap: 48px;
-}
-
-.slide-content.two-columns {
-  column-count: 2;
-}
-
-.slide-content p {
-  margin: 0 0 16px;
+  line-height: var(--slide-line-height);
+  margin: 0 0 calc(var(--slide-line-height) * 1rem); /* Dynamic margin */
   break-inside: avoid;
 }
 
-.slide-content p.empty-line {
-  height: 1.2em;
+/* Specific styling for the main title on the first slide */
+.slide-main-title {
+  font-size: calc(var(--slide-font-size) * 1.5);
+  font-weight: 800;
+  margin-bottom: 32px;
+  line-height: 1.2;
+  color: var(--panel-accent);
+}
+
+/* Compact Mode Headers */
+.compact-header {
+  font-size: calc(var(--slide-font-size) * 0.8);
+  color: var(--panel-accent);
+  margin: 24px 0 12px;
+  font-weight: 700;
+  break-after: avoid;
+}
+
+/* Two columns layout for larger text */
+#slide_content.two-columns {
+  display: block; /* Required for column-count */
+  column-count: 2;
+  column-gap: 64px;
+  column-rule: 1px solid rgba(255,255,255,0.1);
+  text-align: left;
+  align-items: start;
+  justify-content: start;
+  width: 100%;
+}
+
+#slide_content.two-columns p {
+  text-align: left;
+  max-width: 100%;
+  margin-bottom: calc(var(--slide-line-height) * 1.5rem);
+  width: 100%; /* Ensure p doesn't overflow column */
+  box-sizing: border-box;
+}
+
+/* Override Main padding when in Letra mode */
+body.mode-letra main {
+  padding: 0;
+  max-width: none;
+}
+body.mode-letra #cifra_view {
+  display: none;
+}
+
+/* Visible but transparent search in letra mode */
+body.mode-letra #search-trigger,
+body.mode-letra #fullscreen-trigger {
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+
+body.mode-letra #search-trigger:hover,
+body.mode-letra #fullscreen-trigger:hover {
+  opacity: 1;
 }
 
 #control-panel {
@@ -134,7 +339,7 @@ pre {
   border-top: 1px solid var(--panel-border);
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
   transition: transform 0.3s ease-in-out;
-  z-index: 10;
+  z-index: 60; /* Above slide view */
 }
 
 #control-panel.collapsed .controls-inner {
@@ -219,6 +424,22 @@ input[type="text"]:focus,
 button:focus {
   outline: 2px solid var(--panel-accent);
   outline-offset: 2px;
+}
+
+.toggle-control {
+  display: flex;
+  align-items: center;
+  background: #2b2c2f;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.toggle-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
 }
 
 .tone-buttons {

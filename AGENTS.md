@@ -43,12 +43,16 @@
 - Handle edge cases gracefully in music notation parsing
 
 ### DOM Manipulation
-- Use jQuery for DOM operations (already included)
-- Follow existing patterns for event handlers and element selection
+- **Vanilla JS**: Use `document.getElementById`, `querySelector`, `addEventListener`
+- **No jQuery**: Do not use jQuery or other DOM libraries
 - Use semantic HTML element IDs matching existing conventions
 
-### Music-Specific Conventions
-- Notes use standard western notation (C, D, E, F, G, A, B)
-- Support both sharps (#) and flats (b)
-- Handle octave calculations (12 notes per octave)
-- Preserve tablature formatting and spacing
+### Features
+- **Modes**: "Cifra" (Chords) and "Letra" (Presentation/Lyrics)
+- **Search**: Full-text search with score-based ranking and snippet highlighting
+- **Presentation Mode**:
+    - Fullscreen-capable slide view
+    - "Compact Mode" to merge sections
+    - Automatic or manual column layout
+    - Font size and line height controls
+- **Caching**: Songs are fetched and cached in memory

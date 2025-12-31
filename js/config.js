@@ -7,6 +7,34 @@ let bancoDeCifras = [
     tom: "C",
     nome: "grupo_logos_autor_da_minha_fe",
   },
+  {
+    tom: "C",
+    nome: "adhemar_de_campos_grande_e_o_senhor",
+  },
+  {
+    tom: "C",
+    nome: "asaph_borba_minhalma_engrandece_ao_senhor",
+  },
+  {
+    tom: "C",
+    nome: "diante_do_trono_preciso_de_ti",
+  },
+  {
+    tom: "C",
+    nome: "fhop_music_tu_es",
+  },
+  {
+    tom: "C",
+    nome: "indelevel_coracao_ensinavel",
+  },
+  {
+    tom: "C",
+    nome: "isaias_saad_ousado_amor",
+  },
+  {
+    tom: "C",
+    nome: "projeto_sola_ressureicao",
+  },
 ];
 
 let appState = {
@@ -19,7 +47,9 @@ let appState = {
   slides: [],
   currentSlideIndex: 0,
   fontScale: 1,
-  columnLayout: "1",
+  lineHeight: 1.5,
+  columnLayout: "auto",
+  compactMode: false,
 };
 
 const checkCifraLines = (cifra) => {

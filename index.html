@@ -9,6 +9,24 @@
 </head>
 <body>
   <main>
+    <button id="search-trigger" class="floating-button" aria-label="Pesquisar música">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    </button>
+    <button id="fullscreen-trigger" class="floating-button" aria-label="Alternar tela cheia">
+      <svg id="icon-maximize" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      <svg id="icon-minimize" class="hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+    </button>
+
+    <div id="search-overlay" class="hidden" aria-hidden="true">
+      <div class="search-container">
+        <header class="search-header">
+          <input type="text" id="search-input" placeholder="Buscar título ou trecho..." autocomplete="off">
+          <button id="close-search" aria-label="Fechar busca">✕</button>
+        </header>
+        <ul id="search-results"></ul>
+      </div>
+    </div>
+
     <div id="display">
        <section id="cifra_view" aria-label="Visualização de cifras">
          <pre id="cifra"></pre>
@@ -54,11 +72,20 @@
       <div id="letra_controls" class="control-group hidden">
         <span class="control-label">Apresentação</span>
         <div class="presentation-options">
+          <div class="toggle-control">
+             <label for="compact_mode" style="font-size: 0.9rem; margin-right: 8px;">Compacto</label>
+             <input type="checkbox" id="compact_mode">
+          </div>
           <label for="column_layout">Colunas</label>
           <select id="column_layout">
+            <option value="auto" selected>Auto</option>
             <option value="1">Uma</option>
             <option value="2">Duas</option>
           </select>
+          <div class="font-controls" role="group" aria-label="Espaçamento">
+            <button type="button" id="decrease_line_height" aria-label="Diminuir espaçamento" title="Diminuir espaçamento">H-</button>
+            <button type="button" id="increase_line_height" aria-label="Aumentar espaçamento" title="Aumentar espaçamento">H+</button>
+          </div>
           <div class="font-controls" role="group" aria-label="Tamanho da fonte">
             <button type="button" id="decrease_font" aria-label="Diminuir fonte">A-</button>
             <span id="font_size_value">100%</span>
