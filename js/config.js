@@ -50,6 +50,7 @@ let appState = {
   lineHeight: 1.5,
   columnLayout: "auto",
   compactMode: false,
+  theme: "system",
 };
 
 const checkCifraLines = (cifra) => {

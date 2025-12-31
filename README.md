@@ -39,6 +39,20 @@ Importe os arquivos de script em sua página HTML na ordem abaixo:
 Caso prefira minimizar as requisições, copie todos os arquivos importados para um único arquivo `script.js` e utilize uma ferram
 enta como https://javascript-minifier.com para minificá-lo.
 
+## Busca, apresentação e atalhos
+
+- **Busca**: use o botão flutuante ou os atalhos `/`, `Ctrl+K` ou `Cmd/Ctrl+Shift+F` para abrir.
+- **Navegação na busca**: use `↑`/`↓` para trocar de resultado, `Enter` para abrir e `Esc` para fechar.
+- **Modo de apresentação**: `Cmd/Ctrl+M` alterna entre **Cifra** e **Letra**.
+- **Slides**: em **Letra**, use `←`/`→` para avançar/voltar.
+- **Compacto**: ao ativar, as seções são mescladas e o texto é encaixado em duas colunas sem rolagem; os controles de line-height e fonte ficam ocultos.
+
+## Tema
+
+- O seletor **Tema** permite escolher `Sistema` (padrão), `Claro` ou `Escuro`.
+- Em **Sistema**, a interface segue o tema do sistema operacional.
+- A escolha fica salva no navegador.
+
 ## Configurações
 
 As configurações ficam em `config.js`. O estado da aplicação (tonalidade atual, lista de cifras disponíveis e preferências de

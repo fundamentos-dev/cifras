@@ -58,8 +58,12 @@
         </div>
       </div>
       <div class="control-group">
-        <label for="cifras" class="control-label">Música</label>
-        <select id="cifras"></select>
+        <label for="theme_select" class="control-label">Tema</label>
+        <select id="theme_select">
+          <option value="system" selected>Sistema</option>
+          <option value="light">Claro</option>
+          <option value="dark">Escuro</option>
+        </select>
       </div>
       <div id="tone_controls" class="control-group">
         <label for="tom" class="control-label">Tom</label>
@@ -82,11 +86,11 @@
             <option value="1">Uma</option>
             <option value="2">Duas</option>
           </select>
-          <div class="font-controls" role="group" aria-label="Espaçamento">
+          <div id="line_height_controls" class="font-controls" role="group" aria-label="Espaçamento">
             <button type="button" id="decrease_line_height" aria-label="Diminuir espaçamento" title="Diminuir espaçamento">H-</button>
             <button type="button" id="increase_line_height" aria-label="Aumentar espaçamento" title="Aumentar espaçamento">H+</button>
           </div>
-          <div class="font-controls" role="group" aria-label="Tamanho da fonte">
+          <div id="font_size_controls" class="font-controls" role="group" aria-label="Tamanho da fonte">
             <button type="button" id="decrease_font" aria-label="Diminuir fonte">A-</button>
             <span id="font_size_value">100%</span>
             <button type="button" id="increase_font" aria-label="Aumentar fonte">A+</button>

@@ -1,5 +1,4 @@
 window.addEventListener("DOMContentLoaded", () => {
-  const selectCifras = document.getElementById("cifras");
   const tomInput = document.getElementById("tom");
   const cifraView = document.getElementById("cifra_view");
   const letraView = document.getElementById("letra_view");
@@ -10,6 +9,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const panelToggle = document.getElementById("panel-toggle");
   const controlPanel = document.getElementById("control-panel");
   const columnSelect = document.getElementById("column_layout");
+  const themeSelect = document.getElementById("theme_select");
   const fontSizeValue = document.getElementById("font_size_value");
   const decreaseFontButton = document.getElementById("decrease_font");
   const increaseFontButton = document.getElementById("increase_font");
@@ -51,18 +51,11 @@ window.addEventListener("DOMContentLoaded", () => {
     maxIterations: 200,
     overflowTolerancePx: 1,
   };
+  const THEME_STORAGE_KEY = "cifras-theme";
   let compactFitFrameId = null;
   let compactPaginationInProgress = false;
-
-  bancoDeCifras.forEach((cifra, index) => {
-    const option = document.createElement("option");
-    option.value = cifra.nome;
-    option.textContent = cifra.nome.replace(/_/g, " ");
-    if (index === 0) {
-      option.selected = true;
-    }
-    selectCifras.appendChild(option);
-  });
+  let searchSelectionIndex = -1;
+  let lastSearchResults = [];
 
   const parseSlidesFromText = (texto) => {
     const linhas = texto.split(/\r?\n/);
@@ -272,16 +265,43 @@ window.addEventListener("DOMContentLoaded", () => {
     renderSearchResults(results);
   };
 
+  const setSearchSelection = (index) => {
+    const items = Array.from(searchResults.querySelectorAll(".search-result-item"));
+    if (!items.length) {
+      searchSelectionIndex = -1;
+      return;
+    }
+    const normalizedIndex = ((index % items.length) + items.length) % items.length;
+    items.forEach((item, itemIndex) => {
+      item.classList.toggle("active", itemIndex === normalizedIndex);
+    });
+    searchSelectionIndex = normalizedIndex;
+    items[normalizedIndex].scrollIntoView({ block: "nearest" });
+  };
+
+  const activateSearchResult = (index) => {
+    const item = lastSearchResults[index];
+    if (!item) {
+      return;
+    }
+    trocarCifra(item.nome);
+    appState.modo = "letra"; // Force presentation mode
+    updateModeUI();
+    closeSearchOverlay();
+  };
+
   const renderSearchResults = (results) => {
     searchResults.innerHTML = "";
+    lastSearchResults = results;
+    searchSelectionIndex = -1;
     if (results.length === 0) {
       if (searchInput.value.trim()) {
-         searchResults.innerHTML = "<li style='padding:16px; color:#999'>Nenhum resultado encontrado.</li>";
+        searchResults.innerHTML = "<li style='padding:16px; color:var(--app-muted)'>Nenhum resultado encontrado.</li>";
       }
       return;
     }
 
-    results.forEach(item => {
+    results.forEach((item, index) => {
       const li = document.createElement("li");
       li.className = "search-result-item";
       li.innerHTML = `
@@ -289,13 +309,11 @@ window.addEventListener("DOMContentLoaded", () => {
         ${item.snippet ? `<span class="result-snippet">${escapeHtml(item.snippet)}</span>` : ""}
       `;
       li.addEventListener("click", () => {
-        trocarCifra(item.nome);
-        appState.modo = "letra"; // Force presentation mode
-        updateModeUI();
-        closeSearchOverlay();
+        activateSearchResult(index);
       });
       searchResults.appendChild(li);
     });
+    setSearchSelection(0);
   };
 
   const openSearchOverlay = () => {
@@ -303,7 +321,7 @@ window.addEventListener("DOMContentLoaded", () => {
     searchOverlay.setAttribute("aria-hidden", "false");
     searchInput.focus();
     preloadSongs().then(() => {
-        if (searchInput.value) performSearch(searchInput.value);
+      if (searchInput.value) performSearch(searchInput.value);
     });
   };
 
@@ -312,6 +330,30 @@ window.addEventListener("DOMContentLoaded", () => {
     searchOverlay.setAttribute("aria-hidden", "true");
     searchInput.value = "";
     searchResults.innerHTML = "";
+    searchSelectionIndex = -1;
+    lastSearchResults = [];
+  };
+
+  const applyTheme = (theme) => {
+    const normalizedTheme = theme || "system";
+    appState.theme = normalizedTheme;
+    if (normalizedTheme === "system") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", normalizedTheme);
+    }
+    if (themeSelect && themeSelect.value !== normalizedTheme) {
+      themeSelect.value = normalizedTheme;
+    }
+  };
+
+  const loadThemePreference = () => {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme) {
+      applyTheme(savedTheme);
+      return;
+    }
+    applyTheme(appState.theme || "system");
   };
 
   const updateModeUI = () => {
@@ -644,9 +686,6 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Update select if triggered from search
-    selectCifras.value = nomeCifra;
-
     appState.tom = cifraSelecionada.tom;
     appState.tomOriginal = cifraSelecionada.tom;
     tomInput.value = appState.tom;
@@ -773,14 +812,22 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  selectCifras.addEventListener("change", (event) => {
-    trocarCifra(event.target.value);
-  });
-
   columnSelect.addEventListener("change", (event) => {
     appState.columnLayout = event.target.value;
     updateSlideStyles();
   });
+
+  if (themeSelect) {
+    themeSelect.addEventListener("change", (event) => {
+      const selectedTheme = event.target.value;
+      applyTheme(selectedTheme);
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, selectedTheme);
+      } catch (error) {
+        console.error("Nao foi possivel salvar o tema.", error);
+      }
+    });
+  }
 
   decreaseFontButton.addEventListener("click", () => {
     ajustarEscalaFonte(-0.1);
@@ -813,74 +860,123 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   document.addEventListener("keydown", (event) => {
-    // Shortcuts work in Letra mode OR if search is not open
-    if (searchOverlay.classList.contains("hidden")) {
-        // Open search with '/' or Ctrl+K
-        if (event.key === "/" || (event.ctrlKey && event.key === "k")) {
-            event.preventDefault();
-            openSearchOverlay();
-            return;
-        }
+    const isSearchOpen = !searchOverlay.classList.contains("hidden");
+    const key = event.key.toLowerCase();
+    const isCmdOrCtrl = event.metaKey || event.ctrlKey;
 
-        if (appState.modo === "letra") {
-            if (event.key === "ArrowRight") {
-            event.preventDefault();
-            if (appState.currentSlideIndex < appState.slides.length - 1) {
-                appState.currentSlideIndex += 1;
-                renderSlide();
-            }
-            } else if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            if (appState.currentSlideIndex > 0) {
-                appState.currentSlideIndex -= 1;
-                renderSlide();
-            }
-            }
+    if (isCmdOrCtrl && key === "m") {
+      event.preventDefault();
+      appState.modo = appState.modo === "cifra" ? "letra" : "cifra";
+      updateModeUI();
+      if (isSearchOpen) {
+        closeSearchOverlay();
+      }
+      return;
+    }
+
+    if (isCmdOrCtrl && event.shiftKey && key === "f") {
+      event.preventDefault();
+      openSearchOverlay();
+      return;
+    }
+
+    // Shortcuts work in Letra mode OR if search is not open
+    if (!isSearchOpen) {
+      // Open search with '/' or Ctrl+K
+      if (event.key === "/" || (isCmdOrCtrl && key === "k")) {
+        event.preventDefault();
+        openSearchOverlay();
+        return;
+      }
+
+      if (appState.modo === "letra") {
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          if (appState.currentSlideIndex < appState.slides.length - 1) {
+            appState.currentSlideIndex += 1;
+            renderSlide();
+          }
+        } else if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          if (appState.currentSlideIndex > 0) {
+            appState.currentSlideIndex -= 1;
+            renderSlide();
+          }
         }
+      }
     } else {
-        // Search mode shortcuts
-        if (event.key === "Escape") {
-            closeSearchOverlay();
-        }
+      // Search mode shortcuts
+      if (event.key === "Escape") {
+        closeSearchOverlay();
+      }
     }
   });
 
   // Search Listeners
-    searchTrigger.addEventListener("click", openSearchOverlay);
-    closeSearch.addEventListener("click", closeSearchOverlay);
-    searchInput.addEventListener("input", (e) => {
-        performSearch(e.target.value);
-    });
-  
-    const toggleFullscreen = () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch((err) => {
-          console.error(`Error attempting to enable fullscreen: ${err.message}`);
-        });
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        }
-      }
-    };
-  
-    const updateFullscreenIcon = () => {
-      if (document.fullscreenElement) {
-        iconMaximize.classList.add("hidden");
-        iconMinimize.classList.remove("hidden");
-      } else {
-        iconMaximize.classList.remove("hidden");
-        iconMinimize.classList.add("hidden");
-      }
-    };
-  
-    if (fullscreenTrigger) {
-      fullscreenTrigger.addEventListener("click", toggleFullscreen);
+  searchTrigger.addEventListener("click", openSearchOverlay);
+  closeSearch.addEventListener("click", closeSearchOverlay);
+  searchInput.addEventListener("input", (e) => {
+    performSearch(e.target.value);
+  });
+  searchInput.addEventListener("keydown", (event) => {
+    if (searchOverlay.classList.contains("hidden")) {
+      return;
     }
-    
-    document.addEventListener("fullscreenchange", updateFullscreenIcon);
-  
-    // New Listener for Compact Mode
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!lastSearchResults.length) {
+        return;
+      }
+      const nextIndex =
+        searchSelectionIndex < 0 ? 0 : searchSelectionIndex + 1;
+      setSearchSelection(nextIndex);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!lastSearchResults.length) {
+        return;
+      }
+      const prevIndex =
+        searchSelectionIndex < 0
+          ? lastSearchResults.length - 1
+          : searchSelectionIndex - 1;
+      setSearchSelection(prevIndex);
+    } else if (event.key === "Enter") {
+      if (searchSelectionIndex >= 0) {
+        event.preventDefault();
+        activateSearchResult(searchSelectionIndex);
+      }
+    }
+  });
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  const updateFullscreenIcon = () => {
+    if (document.fullscreenElement) {
+      iconMaximize.classList.add("hidden");
+      iconMinimize.classList.remove("hidden");
+    } else {
+      iconMaximize.classList.remove("hidden");
+      iconMinimize.classList.add("hidden");
+    }
+  };
+
+  if (fullscreenTrigger) {
+    fullscreenTrigger.addEventListener("click", toggleFullscreen);
+  }
+
+  document.addEventListener("fullscreenchange", updateFullscreenIcon);
+
+  // New Listener for Compact Mode
   const compactModeToggle = document.getElementById("compact_mode");
   if (compactModeToggle) {
       compactModeToggle.addEventListener("change", (e) => {
@@ -898,8 +994,10 @@ window.addEventListener("DOMContentLoaded", () => {
       });
   }
 
+  loadThemePreference();
+
   // Initial load
-  trocarCifra(selectCifras.value || bancoDeCifras[0].nome);
+  trocarCifra(bancoDeCifras[0].nome);
   // Preload in background
   setTimeout(preloadSongs, 1000);
 });
