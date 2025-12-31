@@ -263,6 +263,10 @@ pre {
   overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
+body.compact-mode #slide_content {
+  overflow: hidden;
+}
+
 #slide_content p {
   font-size: var(--slide-font-size);
   line-height: var(--slide-line-height);
@@ -300,12 +304,20 @@ pre {
   width: 100%;
 }
 
+body.compact-mode #slide_content.two-columns {
+  column-fill: auto;
+}
+
 #slide_content.two-columns p {
   text-align: left;
   max-width: 100%;
   margin-bottom: calc(var(--slide-line-height) * 1.5rem);
   width: 100%; /* Ensure p doesn't overflow column */
   box-sizing: border-box;
+}
+
+body.compact-mode #slide_content p.empty-line {
+  margin-bottom: calc(var(--slide-line-height) * 0.6rem);
 }
 
 /* Override Main padding when in Letra mode */

@@ -43,6 +43,16 @@ window.addEventListener("DOMContentLoaded", () => {
   cifraOriginal.classList.add("collapsed-original");
 
   const BASE_SLIDE_FONT_SIZE = 3.5;
+  const COMPACT_FIT_LIMITS = {
+    minLineHeightRatio: 1.08,
+    lineHeightStep: 0.02,
+    minFontSizePx: 14,
+    fontSizeStep: 0.5,
+    maxIterations: 200,
+    overflowTolerancePx: 1,
+  };
+  let compactFitFrameId = null;
+  let compactPaginationInProgress = false;
 
   bancoDeCifras.forEach((cifra, index) => {
     const option = document.createElement("option");
@@ -312,15 +322,229 @@ window.addEventListener("DOMContentLoaded", () => {
     letraView.classList.toggle("hidden", isModoCifra);
     toneControls.classList.toggle("hidden", !isModoCifra);
     letraControls.classList.toggle("hidden", isModoCifra);
+    document.body.classList.toggle(
+      "compact-mode",
+      appState.compactMode && !isModoCifra
+    );
 
     // Update Body Class for CSS overrides
     if (isModoCifra) {
       document.body.classList.remove("mode-letra");
+      resetCompactFitOverrides();
       renderCifraView();
     } else {
       document.body.classList.add("mode-letra");
       renderSlide();
     }
+  };
+
+  const resetCompactFitOverrides = () => {
+    if (!slideContent) {
+      return;
+    }
+    slideContent.style.removeProperty("--slide-font-size");
+    slideContent.style.removeProperty("--slide-line-height");
+    slideContent.removeAttribute("data-compact-overflow");
+  };
+
+  const contentFitsSlide = () => {
+    if (!slideContent) {
+      return true;
+    }
+    const widthOverflow = slideContent.scrollWidth - slideContent.clientWidth;
+    const heightOverflow = slideContent.scrollHeight - slideContent.clientHeight;
+    return (
+      widthOverflow <= COMPACT_FIT_LIMITS.overflowTolerancePx &&
+      heightOverflow <= COMPACT_FIT_LIMITS.overflowTolerancePx
+    );
+  };
+
+  const trimEmptyEdges = (lines) => {
+    const trimmed = lines.slice();
+    while (trimmed.length && !trimmed[0].trim().length) {
+      trimmed.shift();
+    }
+    while (trimmed.length && !trimmed[trimmed.length - 1].trim().length) {
+      trimmed.pop();
+    }
+    return trimmed;
+  };
+
+  const findCompactSplitIndex = (lines) => {
+    const mid = Math.floor(lines.length / 2);
+    const isEmpty = (line) => !line.trim().length;
+    const isHeader = (line) => /^\s*\[.+\]\s*$/.test(line);
+    let splitIndex = -1;
+
+    for (let offset = 0; offset <= mid; offset += 1) {
+      const forward = mid + offset;
+      const backward = mid - offset;
+      if (forward < lines.length && isEmpty(lines[forward])) {
+        splitIndex = forward + 1;
+        break;
+      }
+      if (backward >= 0 && isEmpty(lines[backward])) {
+        splitIndex = backward + 1;
+        break;
+      }
+    }
+
+    if (splitIndex === -1) {
+      for (let offset = 0; offset <= mid; offset += 1) {
+        const forward = mid + offset;
+        const backward = mid - offset;
+        if (forward < lines.length && isHeader(lines[forward])) {
+          splitIndex = forward;
+          break;
+        }
+        if (backward >= 0 && isHeader(lines[backward])) {
+          splitIndex = backward;
+          break;
+        }
+      }
+    }
+
+    if (splitIndex <= 0 || splitIndex >= lines.length) {
+      splitIndex = mid;
+    }
+
+    return splitIndex;
+  };
+
+  const paginateCompactSlide = () => {
+    if (compactPaginationInProgress) {
+      return false;
+    }
+    const currentSlide = appState.slides[appState.currentSlideIndex];
+    if (!currentSlide || currentSlide.linhas.length < 2) {
+      return false;
+    }
+
+    const splitIndex = findCompactSplitIndex(currentSlide.linhas);
+    const firstLines = trimEmptyEdges(currentSlide.linhas.slice(0, splitIndex));
+    const secondLines = trimEmptyEdges(currentSlide.linhas.slice(splitIndex));
+
+    if (!firstLines.length || !secondLines.length) {
+      return false;
+    }
+
+    compactPaginationInProgress = true;
+    const firstSlide = { titulo: currentSlide.titulo, linhas: firstLines };
+    const secondSlide = { titulo: currentSlide.titulo, linhas: secondLines };
+    appState.slides.splice(
+      appState.currentSlideIndex,
+      1,
+      firstSlide,
+      secondSlide
+    );
+    renderSlide();
+    compactPaginationInProgress = false;
+    return true;
+  };
+
+  /**
+   * Ajusta line-height e font-size para encaixar o conteudo sem rolagem,
+   * priorizando reduzir o line-height antes do font-size.
+   */
+  const applyCompactShrinkToFit = () => {
+    if (!slideContent || appState.modo !== "letra" || !appState.compactMode) {
+      return;
+    }
+    if (compactPaginationInProgress) {
+      return;
+    }
+
+    const sample =
+      slideContent.querySelector("p") || slideContent.querySelector("h1, h4");
+    if (!sample) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(sample);
+    const baseFontSizePx = parseFloat(computed.fontSize);
+    const baseLineHeightPx = parseFloat(computed.lineHeight);
+
+    if (!baseFontSizePx || Number.isNaN(baseFontSizePx)) {
+      return;
+    }
+
+    let lineHeightRatio = appState.lineHeight;
+    if (!Number.isNaN(baseLineHeightPx) && baseLineHeightPx > 0) {
+      lineHeightRatio = baseLineHeightPx / baseFontSizePx;
+    }
+
+    const minLineHeightRatio = Math.min(
+      COMPACT_FIT_LIMITS.minLineHeightRatio,
+      lineHeightRatio
+    );
+    let fontSizePx = baseFontSizePx;
+    const minFontSizePx = Math.min(
+      COMPACT_FIT_LIMITS.minFontSizePx,
+      fontSizePx
+    );
+
+    if (contentFitsSlide()) {
+      return;
+    }
+
+    let iterations = 0;
+    while (!contentFitsSlide() && iterations < COMPACT_FIT_LIMITS.maxIterations) {
+      if (lineHeightRatio - COMPACT_FIT_LIMITS.lineHeightStep >= minLineHeightRatio) {
+        lineHeightRatio = Math.max(
+          minLineHeightRatio,
+          lineHeightRatio - COMPACT_FIT_LIMITS.lineHeightStep
+        );
+        slideContent.style.setProperty(
+          "--slide-line-height",
+          lineHeightRatio.toFixed(3)
+        );
+      } else if (fontSizePx - COMPACT_FIT_LIMITS.fontSizeStep >= minFontSizePx) {
+        fontSizePx = Math.max(
+          minFontSizePx,
+          fontSizePx - COMPACT_FIT_LIMITS.fontSizeStep
+        );
+        slideContent.style.setProperty(
+          "--slide-font-size",
+          `${fontSizePx.toFixed(2)}px`
+        );
+      } else {
+        break;
+      }
+      iterations += 1;
+    }
+
+    if (!contentFitsSlide()) {
+      if (paginateCompactSlide()) {
+        return;
+      }
+      slideContent.dataset.compactOverflow = "true";
+      console.error(
+        "Compact fit falhou: minimo de fonte/altura atingido. Considere paginar."
+      );
+    }
+  };
+
+  const scheduleCompactFit = () => {
+    if (!slideContent) {
+      return;
+    }
+    if (!appState.compactMode || appState.modo !== "letra") {
+      if (compactFitFrameId !== null) {
+        cancelAnimationFrame(compactFitFrameId);
+        compactFitFrameId = null;
+      }
+      resetCompactFitOverrides();
+      return;
+    }
+
+    resetCompactFitOverrides();
+    if (compactFitFrameId !== null) {
+      cancelAnimationFrame(compactFitFrameId);
+    }
+    compactFitFrameId = requestAnimationFrame(() => {
+      compactFitFrameId = null;
+      applyCompactShrinkToFit();
+    });
   };
 
   const updateSlideStyles = () => {
@@ -355,6 +579,7 @@ window.addEventListener("DOMContentLoaded", () => {
       appState.lineHeight
     );
     fontSizeValue.textContent = `${Math.round(appState.fontScale * 100)}%`;
+    scheduleCompactFit();
   };
 
   const updateSlideNavigationState = () => {
@@ -494,6 +719,10 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", () => {
     if (appState.modo === "cifra") {
       renderCifraView();
+      return;
+    }
+    if (appState.modo === "letra") {
+      updateSlideStyles();
     }
   });
 
@@ -656,6 +885,10 @@ window.addEventListener("DOMContentLoaded", () => {
   if (compactModeToggle) {
       compactModeToggle.addEventListener("change", (e) => {
           appState.compactMode = e.target.checked;
+          document.body.classList.toggle(
+            "compact-mode",
+            appState.compactMode && appState.modo === "letra"
+          );
           // Re-parse/build slides from original data
           if (appState.cifraOriginal) {
               appState.slides = parseSlidesFromText(appState.cifraOriginal);
