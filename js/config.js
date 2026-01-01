@@ -48,6 +48,8 @@ let appState = {
   currentSlideIndex: 0,
   fontScale: 1,
   lineHeight: 1.5,
+  cifraFontScale: 1,
+  cifraLineHeight: 1.5,
   columnLayout: "auto",
   compactMode: false,
   theme: "system",

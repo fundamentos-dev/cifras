@@ -45,13 +45,15 @@ enta como https://javascript-minifier.com para minificá-lo.
 - **Navegação na busca**: use `↑`/`↓` para trocar de resultado, `Enter` para abrir e `Esc` para fechar.
 - **Modo de apresentação**: `Cmd/Ctrl+M` alterna entre **Cifra** e **Letra**.
 - **Slides**: em **Letra**, use `←`/`→` para avançar/voltar.
-- **Compacto**: ao ativar, as seções são mescladas e o texto é encaixado em duas colunas sem rolagem; os controles de line-height e fonte ficam ocultos.
+- **Exibição**: ajustes de tamanho de fonte e line-height funcionam tanto em **Cifra** quanto em **Letra**; colunas são exclusivas do modo **Letra**.
+- **Compacto**: ao ativar, as seções são mescladas e o texto é encaixado em duas colunas sem rolagem; os controles de line-height, fonte e colunas ficam ocultos e os ajustes são resetados para o encaixe automático.
+- **Cabeçalhos compactos**: títulos de seção aparecem em destaque, sem colchetes.
 
 ## Tema
 
-- O seletor **Tema** permite escolher `Sistema` (padrão), `Claro` ou `Escuro`.
-- Em **Sistema**, a interface segue o tema do sistema operacional.
-- A escolha fica salva no navegador.
+- O toggle **Tema** alterna entre claro e escuro.
+- O estado inicial segue o tema do sistema operacional.
+- A escolha fica salva no navegador após a primeira alteração.
 
 ## Configurações
 

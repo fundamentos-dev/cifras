@@ -9,7 +9,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const panelToggle = document.getElementById("panel-toggle");
   const controlPanel = document.getElementById("control-panel");
   const columnSelect = document.getElementById("column_layout");
-  const themeSelect = document.getElementById("theme_select");
+  const themeToggle = document.getElementById("theme_toggle");
   const fontSizeValue = document.getElementById("font_size_value");
   const decreaseFontButton = document.getElementById("decrease_font");
   const increaseFontButton = document.getElementById("increase_font");
@@ -41,8 +41,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Default collapsed
   cifraOriginal.classList.add("collapsed-original");
+  document.body.classList.toggle("mode-cifra", appState.modo === "cifra");
 
   const BASE_SLIDE_FONT_SIZE = 3.5;
+  const BASE_CIFRA_FONT_SIZE = 1.0;
+  const DEFAULT_SLIDE_FONT_SCALE = appState.fontScale;
+  const DEFAULT_SLIDE_LINE_HEIGHT = appState.lineHeight;
   const COMPACT_FIT_LIMITS = {
     minLineHeightRatio: 1.08,
     lineHeightStep: 0.02,
@@ -52,6 +56,7 @@ window.addEventListener("DOMContentLoaded", () => {
     overflowTolerancePx: 1,
   };
   const THEME_STORAGE_KEY = "cifras-theme";
+  const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
   let compactFitFrameId = null;
   let compactPaginationInProgress = false;
   let searchSelectionIndex = -1;
@@ -334,6 +339,17 @@ window.addEventListener("DOMContentLoaded", () => {
     lastSearchResults = [];
   };
 
+  const updateThemeToggleState = () => {
+    if (!themeToggle) {
+      return;
+    }
+    if (appState.theme === "system") {
+      themeToggle.checked = systemThemeQuery.matches;
+      return;
+    }
+    themeToggle.checked = appState.theme === "dark";
+  };
+
   const applyTheme = (theme) => {
     const normalizedTheme = theme || "system";
     appState.theme = normalizedTheme;
@@ -342,9 +358,7 @@ window.addEventListener("DOMContentLoaded", () => {
     } else {
       document.documentElement.setAttribute("data-theme", normalizedTheme);
     }
-    if (themeSelect && themeSelect.value !== normalizedTheme) {
-      themeSelect.value = normalizedTheme;
-    }
+    updateThemeToggleState();
   };
 
   const loadThemePreference = () => {
@@ -368,14 +382,20 @@ window.addEventListener("DOMContentLoaded", () => {
       "compact-mode",
       appState.compactMode && !isModoCifra
     );
+    document.body.classList.toggle("mode-cifra", isModoCifra);
 
     // Update Body Class for CSS overrides
     if (isModoCifra) {
       document.body.classList.remove("mode-letra");
       resetCompactFitOverrides();
       renderCifraView();
+      updateCifraStyles();
     } else {
       document.body.classList.add("mode-letra");
+      if (appState.compactMode) {
+        appState.fontScale = DEFAULT_SLIDE_FONT_SCALE;
+        appState.lineHeight = DEFAULT_SLIDE_LINE_HEIGHT;
+      }
       renderSlide();
     }
   };
@@ -589,6 +609,19 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   };
 
+  const updateCifraStyles = () => {
+    if (!cifraView) {
+      return;
+    }
+    const computedSize = (BASE_CIFRA_FONT_SIZE * appState.cifraFontScale).toFixed(2);
+    cifraView.style.setProperty("--cifra-font-size", `${computedSize}rem`);
+    cifraView.style.setProperty(
+      "--cifra-line-height",
+      appState.cifraLineHeight.toFixed(2)
+    );
+    fontSizeValue.textContent = `${Math.round(appState.cifraFontScale * 100)}%`;
+  };
+
   const updateSlideStyles = () => {
     if (!slideContent) {
       return;
@@ -662,9 +695,11 @@ window.addEventListener("DOMContentLoaded", () => {
         }
         
         // Handle Compact Mode headers
-        const headerMatch = linha.match(/^\\\[(.+)\]$/);
-        if (headerMatch) {
+        if (appState.compactMode) {
+          const headerMatch = linha.match(/^\[(.+)\]$/);
+          if (headerMatch) {
             return `<h4 class="compact-header">${escapeHtml(headerMatch[1])}</h4>`;
+          }
         }
 
         // If it's the title slide and first line (Normal mode only)
@@ -710,6 +745,9 @@ window.addEventListener("DOMContentLoaded", () => {
     appState.cifras = Cifra.extrairDaCifra(data);
     appState.cifras.forEach((cifra) => cifra.alterarTom());
     renderCifraView();
+    if (appState.modo === "cifra") {
+      updateCifraStyles();
+    }
 
     appState.slides = parseSlidesFromText(data);
     appState.currentSlideIndex = 0;
@@ -740,6 +778,15 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   const ajustarEscalaFonte = (delta) => {
+    if (appState.modo === "cifra") {
+      const novoValor = Math.min(2.5, Math.max(0.3, appState.cifraFontScale + delta));
+      if (novoValor !== appState.cifraFontScale) {
+        appState.cifraFontScale = novoValor;
+        updateCifraStyles();
+      }
+      return;
+    }
+
     const novoValor = Math.min(2.5, Math.max(0.3, appState.fontScale + delta));
     if (novoValor !== appState.fontScale) {
       appState.fontScale = novoValor;
@@ -748,6 +795,18 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   const ajustarLineHeight = (delta) => {
+    if (appState.modo === "cifra") {
+      const novoValor = Math.min(
+        3.0,
+        Math.max(1.0, appState.cifraLineHeight + delta)
+      );
+      if (novoValor !== appState.cifraLineHeight) {
+        appState.cifraLineHeight = novoValor;
+        updateCifraStyles();
+      }
+      return;
+    }
+
     const novoValor = Math.min(3.0, Math.max(1.0, appState.lineHeight + delta));
     if (novoValor !== appState.lineHeight) {
       appState.lineHeight = novoValor;
@@ -758,6 +817,7 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", () => {
     if (appState.modo === "cifra") {
       renderCifraView();
+      updateCifraStyles();
       return;
     }
     if (appState.modo === "letra") {
@@ -814,17 +874,35 @@ window.addEventListener("DOMContentLoaded", () => {
 
   columnSelect.addEventListener("change", (event) => {
     appState.columnLayout = event.target.value;
+    if (appState.modo === "cifra") {
+      updateCifraStyles();
+      return;
+    }
     updateSlideStyles();
   });
 
-  if (themeSelect) {
-    themeSelect.addEventListener("change", (event) => {
-      const selectedTheme = event.target.value;
+  if (themeToggle) {
+    themeToggle.addEventListener("change", () => {
+      const selectedTheme = themeToggle.checked ? "dark" : "light";
       applyTheme(selectedTheme);
       try {
         localStorage.setItem(THEME_STORAGE_KEY, selectedTheme);
       } catch (error) {
         console.error("Nao foi possivel salvar o tema.", error);
+      }
+    });
+  }
+
+  if (systemThemeQuery?.addEventListener) {
+    systemThemeQuery.addEventListener("change", () => {
+      if (appState.theme === "system") {
+        applyTheme("system");
+      }
+    });
+  } else if (systemThemeQuery?.addListener) {
+    systemThemeQuery.addListener(() => {
+      if (appState.theme === "system") {
+        applyTheme("system");
       }
     });
   }
@@ -979,19 +1057,23 @@ window.addEventListener("DOMContentLoaded", () => {
   // New Listener for Compact Mode
   const compactModeToggle = document.getElementById("compact_mode");
   if (compactModeToggle) {
-      compactModeToggle.addEventListener("change", (e) => {
-          appState.compactMode = e.target.checked;
-          document.body.classList.toggle(
-            "compact-mode",
-            appState.compactMode && appState.modo === "letra"
-          );
-          // Re-parse/build slides from original data
-          if (appState.cifraOriginal) {
-              appState.slides = parseSlidesFromText(appState.cifraOriginal);
-              appState.currentSlideIndex = 0;
-              renderSlide();
-          }
-      });
+    compactModeToggle.addEventListener("change", (e) => {
+      appState.compactMode = e.target.checked;
+      if (appState.compactMode) {
+        appState.fontScale = DEFAULT_SLIDE_FONT_SCALE;
+        appState.lineHeight = DEFAULT_SLIDE_LINE_HEIGHT;
+      }
+      document.body.classList.toggle(
+        "compact-mode",
+        appState.compactMode && appState.modo === "letra"
+      );
+      // Re-parse/build slides from original data
+      if (appState.cifraOriginal) {
+        appState.slides = parseSlidesFromText(appState.cifraOriginal);
+        appState.currentSlideIndex = 0;
+        renderSlide();
+      }
+    });
   }
 
   loadThemePreference();
