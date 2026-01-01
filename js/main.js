@@ -37,7 +37,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Cache for song content
   const songCache = {};
+  const songMetaCache = {};
   let songsLoaded = false;
+  let songsListingPromise = null;
 
   // Default collapsed
   cifraOriginal.classList.add("collapsed-original");
@@ -216,13 +218,163 @@ window.addEventListener("DOMContentLoaded", () => {
       .toLowerCase();
   };
 
+  const TOM_METADATA_REGEX = /^\s*Tom:\s*([A-G](?:#|b)?)\s*$/i;
+
+  const normalizeTom = (rawTom) => {
+    if (!rawTom) {
+      return null;
+    }
+    const trimmed = rawTom.trim();
+    if (!trimmed.length) {
+      return null;
+    }
+    const normalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    return dicionarioTons[normalized] ? normalized : null;
+  };
+
+  /**
+   * Extrai o metadado "Tom: X" logo apos o titulo e remove essa linha do texto.
+   * @param {string} rawText
+   * @returns {{tom: (string|null), text: string}}
+   */
+  const parseSongMetadata = (rawText) => {
+    const lines = rawText.split(/\r?\n/);
+    let titleIndex = -1;
+    for (let i = 0; i < lines.length; i += 1) {
+      if (lines[i].trim().length) {
+        titleIndex = i;
+        break;
+      }
+    }
+
+    let tom = null;
+    let metadataIndex = -1;
+    if (titleIndex !== -1) {
+      for (let i = titleIndex + 1; i < lines.length; i += 1) {
+        const trimmed = lines[i].trim();
+        if (!trimmed.length) {
+          continue;
+        }
+        const match = trimmed.match(TOM_METADATA_REGEX);
+        if (match) {
+          tom = normalizeTom(match[1]);
+          metadataIndex = i;
+        }
+        break;
+      }
+    }
+
+    if (metadataIndex !== -1) {
+      lines.splice(metadataIndex, 1);
+    }
+
+    return {
+      tom,
+      text: lines.join("\n"),
+    };
+  };
+
+  const storeSongContent = (nome, rawText) => {
+    const { tom, text } = parseSongMetadata(rawText);
+    songCache[nome] = text;
+    if (tom) {
+      songMetaCache[nome] = tom;
+    }
+    return { tom, text };
+  };
+
+  const extractSongNamesFromHtml = (html) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const links = Array.from(doc.querySelectorAll("a"));
+    const names = new Set();
+
+    links.forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href) {
+        return;
+      }
+      const cleaned = href.split("?")[0].split("#")[0];
+      if (!cleaned.toLowerCase().endsWith(".txt")) {
+        return;
+      }
+      const baseName = cleaned.split("/").pop();
+      if (!baseName) {
+        return;
+      }
+      let decoded = baseName;
+      try {
+        decoded = decodeURIComponent(baseName);
+      } catch (error) {
+        decoded = baseName;
+      }
+      const name = decoded.replace(/\.txt$/i, "");
+      if (name) {
+        names.add(name);
+      }
+    });
+
+    return Array.from(names).sort();
+  };
+
+  const fetchSongList = async () => {
+    try {
+      const response = await fetch(`${SONGS_DIR}/`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const html = await response.text();
+      return extractSongNamesFromHtml(html);
+    } catch (error) {
+      console.error("Erro ao listar cifras automaticamente.", error);
+      return [];
+    }
+  };
+
+  const loadSongBank = async () => {
+    const nomes = await fetchSongList();
+    if (!nomes.length) {
+      return [];
+    }
+    bancoDeCifras = nomes.map((nome) => ({
+      nome,
+      tom: DEFAULT_TOM,
+    }));
+    return bancoDeCifras;
+  };
+
+  const ensureSongBank = () => {
+    if (!songsListingPromise) {
+      songsListingPromise = loadSongBank();
+    }
+    return songsListingPromise;
+  };
+
+  const setSongTom = (nome, tom) => {
+    if (!tom) {
+      return;
+    }
+    appState.tom = tom;
+    appState.tomOriginal = tom;
+    tomInput.value = tom;
+    const entry = bancoDeCifras.find((item) => item.nome === nome);
+    if (entry) {
+      entry.tom = tom;
+    }
+  };
+
   const preloadSongs = async () => {
-    if (songsLoaded) return;
+    if (songsLoaded || !bancoDeCifras.length) return;
     const promises = bancoDeCifras.map(async (cifra) => {
       try {
-        const response = await fetch(`examples/${cifra.nome}.txt`);
+        if (songCache[cifra.nome]) {
+          return;
+        }
+        const response = await fetch(`${SONGS_DIR}/${cifra.nome}.txt`);
         const text = await response.text();
-        songCache[cifra.nome] = text;
+        const { tom } = storeSongContent(cifra.nome, text);
+        if (tom) {
+          cifra.tom = tom;
+        }
       } catch (error) {
         console.error(`Erro ao carregar ${cifra.nome}`, error);
       }
@@ -325,8 +477,13 @@ window.addEventListener("DOMContentLoaded", () => {
     searchOverlay.classList.remove("hidden");
     searchOverlay.setAttribute("aria-hidden", "false");
     searchInput.focus();
-    preloadSongs().then(() => {
-      if (searchInput.value) performSearch(searchInput.value);
+    ensureSongBank().then(() => {
+      if (!bancoDeCifras.length) {
+        return;
+      }
+      preloadSongs().then(() => {
+        if (searchInput.value) performSearch(searchInput.value);
+      });
     });
   };
 
@@ -721,19 +878,23 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    appState.tom = cifraSelecionada.tom;
-    appState.tomOriginal = cifraSelecionada.tom;
-    tomInput.value = appState.tom;
+    const fallbackTom = cifraSelecionada.tom || DEFAULT_TOM;
 
     // Use cached if available
     if (songCache[nomeCifra]) {
-        processCifraData(songCache[nomeCifra]);
+      const cachedTom = songMetaCache[nomeCifra] || fallbackTom;
+      setSongTom(nomeCifra, cachedTom);
+      processCifraData(songCache[nomeCifra]);
     } else {
-        fetch(`examples/${nomeCifra}.txt`)
+      fetch(`${SONGS_DIR}/${nomeCifra}.txt`)
         .then((response) => response.text())
         .then((data) => {
-            songCache[nomeCifra] = data; // Cache it
-            processCifraData(data);
+          const { tom, text } = storeSongContent(nomeCifra, data);
+          setSongTom(nomeCifra, tom || fallbackTom);
+          processCifraData(text);
+        })
+        .catch((error) => {
+          console.error(`Erro ao carregar ${nomeCifra}`, error);
         });
     }
   };
@@ -1076,10 +1237,21 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const initSongs = () => {
+    ensureSongBank().then(() => {
+      if (!bancoDeCifras.length) {
+        console.error(
+          `Nenhuma cifra encontrada em ${SONGS_DIR}/. Verifique o servidor.`
+        );
+        return;
+      }
+      trocarCifra(bancoDeCifras[0].nome);
+      setTimeout(preloadSongs, 1000);
+    });
+  };
+
   loadThemePreference();
 
   // Initial load
-  trocarCifra(bancoDeCifras[0].nome);
-  // Preload in background
-  setTimeout(preloadSongs, 1000);
+  initSongs();
 });

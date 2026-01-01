@@ -1,45 +1,10 @@
-let bancoDeCifras = [
-  {
-    tom: "D",
-    nome: "harpa_crista_alvo_mais_que_a_neve",
-  },
-  {
-    tom: "C",
-    nome: "grupo_logos_autor_da_minha_fe",
-  },
-  {
-    tom: "C",
-    nome: "adhemar_de_campos_grande_e_o_senhor",
-  },
-  {
-    tom: "C",
-    nome: "asaph_borba_minhalma_engrandece_ao_senhor",
-  },
-  {
-    tom: "C",
-    nome: "diante_do_trono_preciso_de_ti",
-  },
-  {
-    tom: "C",
-    nome: "fhop_music_tu_es",
-  },
-  {
-    tom: "C",
-    nome: "indelevel_coracao_ensinavel",
-  },
-  {
-    tom: "C",
-    nome: "isaias_saad_ousado_amor",
-  },
-  {
-    tom: "C",
-    nome: "projeto_sola_ressureicao",
-  },
-];
+const SONGS_DIR = "examples";
+const DEFAULT_TOM = "C";
+let bancoDeCifras = [];
 
 let appState = {
-  tom: "D",
-  tomOriginal: "D",
+  tom: DEFAULT_TOM,
+  tomOriginal: DEFAULT_TOM,
   cifras: [],
   cifraOriginal: "",
   linhas: [],

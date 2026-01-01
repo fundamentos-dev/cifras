@@ -1,4 +1,5 @@
 Projeto Sola - Ressurreição
+Tom: C
 
 [Intro]
 C  G  G/C  G/B  G  C  G  G/C  G/B  G  C
