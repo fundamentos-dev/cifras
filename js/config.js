@@ -42,11 +42,29 @@ const renderCifraView = () => {
     const cifrasOrdenadas = appState.cifras
       .slice()
       .sort((a, b) => (a.linha > b.linha ? 1 : b.linha > a.linha ? -1 : 0));
+    
+    // Check for chords
+    const hasChords = cifrasOrdenadas.some(c => c.linhaCifraOriginal && c.linhaCifraOriginal.trim().length > 0);
+    
+    // Get Title (First line of original text)
+    const title = appState.cifraOriginal ? appState.cifraOriginal.split('\n')[0] : "";
+    
     let cifraRenderizada = "";
 
-    cifrasOrdenadas.forEach((instancia) => {
-      cifraRenderizada += instancia.render(modo, cifraChar);
-    });
+    // Add Title
+    if (title) {
+        cifraRenderizada += `<h3 class="cifra-title">${title}</h3>\n`;
+    }
+
+    if (!hasChords) {
+        cifraRenderizada += `<div class="no-chords-container">
+            <p class="no-chords-message">Essa música não tem cifras cadastradas.</p>
+        </div>\n`;
+    } else {
+        cifrasOrdenadas.forEach((instancia) => {
+          cifraRenderizada += instancia.render(modo, cifraChar);
+        });
+    }
 
     document.getElementById("cifra").innerHTML = cifraRenderizada;
     return cifraRenderizada;

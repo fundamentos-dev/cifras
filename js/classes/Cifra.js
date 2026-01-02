@@ -175,6 +175,16 @@ class Cifra {
 
   render(modo = "desktop", caracteresPorLinha = 32) {
     let html = "";
+    
+    const formatLine = (line) => {
+      if (!line) return "";
+      const titleMatch = line.match(/^\[(.+)\]$/);
+      if (titleMatch) {
+        return `<span class="cifra-section-title">${titleMatch[1]}</span>\n`;
+      }
+      return `${line}\n`;
+    };
+
     if (modo === "desktop") {
       if (this.linhaCifra) {
         let tmpCifraHtml = this.linhaCifra.replace(
@@ -184,10 +194,10 @@ class Cifra {
         html += `${tmpCifraHtml}\n`;
       }
       if (this.linhaUmLetra.length) {
-        html += `${this.linhaUmLetra}\n`;
+        html += formatLine(this.linhaUmLetra);
       }
       if (this.linhaDoisLetra.length) {
-        html += `${this.linhaDoisLetra}\n`;
+        html += formatLine(this.linhaDoisLetra);
       }
       if (this.fimParagrafo) {
         html += `\n\n`;

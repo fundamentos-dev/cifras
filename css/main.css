@@ -630,6 +630,72 @@ button:focus {
   color: var(--panel-accent);
 }
 
+.credits {
+  margin-left: auto;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.credits-content {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.credits-content a {
+  color: var(--panel-accent);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.credits-content a:hover {
+  text-decoration: underline;
+}
+
+.cifra-title {
+  font-weight: bold;
+  color: var(--panel-accent);
+  text-align: left;
+  margin: 0 0 16px 0;
+  font-size: 1.2rem;
+}
+
+.no-chords-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.no-chords-message {
+  color: var(--app-muted);
+  font-style: italic;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.cifra-section-title {
+  font-weight: bold;
+  color: var(--panel-accent);
+  opacity: 0.6;
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+}
+
+.github-icon {
+  transition: transform 0.2s;
+}
+
+.github-icon:hover {
+  transform: scale(1.1);
+}
+
 @media (max-width: 720px) {
   main {
     padding: 24px 16px 200px;
@@ -637,6 +703,15 @@ button:focus {
 
   .controls-inner {
     flex-direction: column;
+  }
+
+  .credits {
+    margin-left: 0;
+    align-items: flex-start;
+    text-align: left;
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--panel-border);
   }
 
   .tone-buttons {
