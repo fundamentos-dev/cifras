@@ -1268,6 +1268,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   loadThemePreference();
 
+  // Initial UI Sync
+  updateModeUI();
+
   // Initial load
   initSongs();
 });

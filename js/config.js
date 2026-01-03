@@ -16,7 +16,7 @@ let appState = {
   cifraFontScale: 1,
   cifraLineHeight: 1.5,
   columnLayout: "auto",
-  compactMode: false,
+  compactMode: true,
   theme: "system",
 };
 
