@@ -318,12 +318,28 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const fetchSongList = async () => {
     try {
-      const response = await fetch(`${SONGS_DIR}/`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      // 1. Tenta carregar a lista gerada pelo Jekyll (GitHub Pages)
+      const response = await fetch(`${SONGS_DIR}/index.json`);
+      if (response.ok) {
+        try {
+          // Se o Jekyll processou, isso será um JSON válido
+          const data = await response.clone().json();
+          if (Array.isArray(data)) return data;
+        } catch (e) {
+          // Se falhar (ex: rodando local sem jekyll), o arquivo contem tags Liquid cruas.
+          // Ignoramos e tentamos o fallback abaixo.
+        }
       }
-      const html = await response.text();
+
+      // 2. Fallback: Tenta listar o diretório (Live Server / Local)
+      const dirResponse = await fetch(`${SONGS_DIR}/`);
+      if (!dirResponse.ok) {
+        // Se ambos falharem, não temos o que fazer
+        throw new Error(`HTTP ${dirResponse.status}`);
+      }
+      const html = await dirResponse.text();
       return extractSongNamesFromHtml(html);
+
     } catch (error) {
       console.error("Erro ao listar cifras automaticamente.", error);
       return [];
