@@ -116,12 +116,17 @@ pre {
 #cifra_original {
   font-size: var(--cifra-font-size);
   line-height: var(--cifra-line-height);
+  /* Fonte monoespacada garante que a cifra fique alinhada acima da letra. */
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", "Courier New", monospace;
 }
 
-#cifra span {
+/* Destaque do acorde SEM alterar a largura: o padding horizontal e
+   compensado por margin negativa para nao deslocar a letra abaixo. */
+#cifra span.cifra {
   background: rgba(255, 183, 3, 0.3);
-  border-radius: 8px;
-  padding: 0 8px;
+  border-radius: 4px;
+  padding: 0 2px;
+  margin: 0 -2px;
 }
 
 .hidden {
@@ -336,32 +341,67 @@ pre {
   /* Center alignment by default */
   align-items: center; 
   text-align: center;
-  overflow-y: auto;
   background: var(--app-background);
   box-shadow: none;
   border-radius: 0;
-  overflow-x: hidden; /* Prevent horizontal scroll */
-}
-
-body.compact-mode #slide_content {
+  /* No modo letra a letra sempre encaixa (shrink-to-fit + paginacao por
+     estrofe), entao escondemos a rolagem. */
   overflow: hidden;
 }
 
-body.compact-mode #line_height_controls,
-body.compact-mode #font_size_controls,
-body.compact-mode #column_controls {
+/* Fallback: estrofe unica maior que a tela mesmo na fonte minima. Libera a
+   rolagem para nao cortar o texto (raro). */
+#slide_content[data-slide-overflow] {
+  overflow-y: auto;
+}
+
+/* Controles condicionais: so aparecem quando podem ter efeito.
+   - Fonte (A-/A+) e altura de linha (H-/H+): so no modo Cifra. No modo Letra
+     o encaixe e automatico, entao ficam ocultos.
+   - Colunas: so no modo Letra nao compacto e com largura suficiente. */
+body.mode-letra #line_height_controls,
+body.mode-letra #font_size_controls {
   display: none;
 }
 
-body.mode-cifra #column_controls {
+/* `body` prefixado para vencer a regra de layout `#column_controls`. */
+body #column_controls {
   display: none;
+}
+
+body.mode-letra:not(.compact-mode).can-two-columns #column_controls {
+  display: flex;
+}
+
+/* Esconde o grupo "Exibição" inteiro quando nenhum de seus controles e util
+   (modo Letra sem opcao de colunas disponivel). */
+body.mode-letra #display_controls {
+  display: none;
+}
+
+body.mode-letra:not(.compact-mode).can-two-columns #display_controls {
+  display: flex;
 }
 
 #slide_content p {
   font-size: var(--slide-font-size);
   line-height: var(--slide-line-height);
-  margin: 0 0 calc(var(--slide-line-height) * 1rem); /* Dynamic margin */
+  margin: 0; /* O espacamento entre estrofes vem de .slide-stanza */
   break-inside: avoid;
+}
+
+/* Estrofe = bloco indivisivel. Nunca quebra entre colunas ou paginas. */
+.slide-stanza {
+  break-inside: avoid;
+  page-break-inside: avoid; /* fallback para engines antigas */
+  -webkit-column-break-inside: avoid;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 calc(var(--slide-line-height) * 0.9rem);
+}
+
+.slide-stanza:last-child {
+  margin-bottom: 0;
 }
 
 /* Specific styling for the main title on the first slide */
@@ -401,13 +441,12 @@ body.compact-mode #slide_content.two-columns {
 #slide_content.two-columns p {
   text-align: left;
   max-width: 100%;
-  margin-bottom: calc(var(--slide-line-height) * 1.5rem);
   width: 100%; /* Ensure p doesn't overflow column */
   box-sizing: border-box;
 }
 
-body.compact-mode #slide_content p.empty-line {
-  margin-bottom: calc(var(--slide-line-height) * 0.6rem);
+#slide_content.two-columns .slide-stanza {
+  text-align: left;
 }
 
 /* Override Main padding when in Letra mode */
@@ -718,12 +757,14 @@ button:focus {
     grid-template-columns: 1fr;
   }
 
-  .slide-content {
-    padding: 24px;
-    font-size: calc(var(--slide-font-size) * 0.9);
+  /* Telas estreitas: menos padding e botoes de navegacao mais finos para
+     sobrar largura ao texto. As colunas ja sao forcadas para 1 via JS. */
+  #slide_content {
+    padding: 32px 48px 64px;
   }
 
-  .slide-content.two-columns {
-    column-count: 1;
+  .slide-button {
+    width: 44px;
+    font-size: 2rem;
   }
 }

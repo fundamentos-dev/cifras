@@ -18,6 +18,10 @@ let appState = {
   columnLayout: "auto",
   compactMode: true,
   theme: "system",
+  // Metadados da musica corrente (preenchidos a partir do cabecalho do .txt)
+  songTitle: "",
+  songOrdem: null,
+  songFontScale: 1,
 };
 
 const checkCifraLines = (cifra) => {
@@ -78,73 +82,6 @@ const renderCifraView = () => {
   } else {
     render();
   }
-};
-
-const parseSlidesFromText = (texto) => {
-  const linhas = texto.split(/\r?\n/);
-  const secoes = [];
-  let secaoAtual = null;
-
-  const limparExtremidadesVazias = (lista) => {
-    while (lista.length && !lista[0].trim().length) {
-      lista.shift();
-    }
-    while (lista.length && !lista[lista.length - 1].trim().length) {
-      lista.pop();
-    }
-  };
-
-  const pushSecao = () => {
-    if (!secaoAtual) {
-      return;
-    }
-    limparExtremidadesVazias(secaoAtual.linhas);
-    const possuiConteudo = secaoAtual.linhas.some((linha) => linha.trim().length);
-    if (secaoAtual.titulo || possuiConteudo) {
-      secoes.push({
-        titulo: secaoAtual.titulo,
-        linhas: secaoAtual.linhas.slice(),
-      });
-    }
-  };
-
-  linhas.forEach((linha) => {
-    const tituloMatch = linha.match(/^\s*\[(.+?)\]\s*$/);
-    if (tituloMatch) {
-      if (secaoAtual) {
-        pushSecao();
-      }
-      secaoAtual = {
-        titulo: tituloMatch[1].trim(),
-        linhas: [],
-      };
-    } else {
-      if (!secaoAtual) {
-        secaoAtual = {
-          titulo: "",
-          linhas: [],
-        };
-      }
-      if (Cifra.isLinhaCifra(linha)) {
-        return;
-      }
-      const linhaTratada = linha.replace(/\s+$/, "");
-      secaoAtual.linhas.push(linhaTratada);
-    }
-  });
-
-  pushSecao();
-
-  if (!secoes.length && texto.trim().length) {
-    return [
-      {
-        titulo: "Letra",
-        linhas: linhas,
-      },
-    ];
-  }
-
-  return secoes;
 };
 
 /**

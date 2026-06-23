@@ -49,157 +49,236 @@ window.addEventListener("DOMContentLoaded", () => {
   const BASE_CIFRA_FONT_SIZE = 1.0;
   const DEFAULT_SLIDE_FONT_SCALE = appState.fontScale;
   const DEFAULT_SLIDE_LINE_HEIGHT = appState.lineHeight;
-  const COMPACT_FIT_LIMITS = {
-    minLineHeightRatio: 1.08,
+  const FIT_LIMITS = {
+    minLineHeightRatio: 1.05,
     lineHeightStep: 0.02,
-    minFontSizePx: 14,
+    minFontSizePx: 13,
     fontSizeStep: 0.5,
-    maxIterations: 200,
+    maxIterations: 300,
     overflowTolerancePx: 1,
   };
+  // Abaixo desta largura (px) nunca usamos 2 colunas: a fonte ficaria pequena
+  // demais para leitura a distancia.
+  const MIN_TWO_COLUMN_WIDTH = 720;
   const THEME_STORAGE_KEY = "cifras-theme";
   const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  let compactFitFrameId = null;
-  let compactPaginationInProgress = false;
+  let fitFrameId = null;
+  let paginationInProgress = false;
+  let resizeFrameId = null;
   let searchSelectionIndex = -1;
   let lastSearchResults = [];
 
-  const parseSlidesFromText = (texto) => {
+  // Orcamento de linhas para considerar um slide compacto "cheio" antes de
+  // mesclar a proxima secao. A paginacao por estrofe e o shrink-to-fit cuidam
+  // do encaixe fino; este valor e apenas o ponto de partida da mesclagem.
+  const COMPACT_LINE_BUDGET = 30;
+
+  const contarLinhasElemento = (elemento) =>
+    elemento.tipo === "estrofe" ? elemento.linhas.length : 1;
+
+  const contarLinhasSlide = (slide) =>
+    slide.elementos.reduce((total, el) => total + contarLinhasElemento(el), 0);
+
+  /**
+   * Quebra o texto da letra em secoes ([Titulo]) e, dentro de cada secao,
+   * em estrofes (blocos de linhas separados por linha em branco). Linhas de
+   * cifra sao descartadas no modo letra. A estrofe e a unidade indivisivel:
+   * nunca deve ser quebrada entre colunas ou slides.
+   */
+  const parseSecoes = (texto) => {
     const linhas = texto.split(/\r?\n/);
     const secoes = [];
-    const sectionMap = {}; // Map title -> content (lines)
     let secaoAtual = null;
+    let blocoAtual = null;
 
-    const limparExtremidadesVazias = (lista) => {
-      while (lista.length && !lista[0].trim().length) {
-        lista.shift();
+    const fecharBloco = () => {
+      if (blocoAtual && blocoAtual.length) {
+        secaoAtual.blocos.push(blocoAtual);
       }
-      while (lista.length && !lista[lista.length - 1].trim().length) {
-        lista.pop();
-      }
+      blocoAtual = null;
     };
 
-    const pushSecao = () => {
+    const fecharSecao = () => {
       if (!secaoAtual) {
         return;
       }
-      limparExtremidadesVazias(secaoAtual.linhas);
-      
-      const tituloNormalizado = secaoAtual.titulo.toLowerCase();
-      const possuiConteudo = secaoAtual.linhas.some((linha) => linha.trim().length);
-
-      if (secaoAtual.titulo) {
-          if (possuiConteudo) {
-              // Save content for this title
-              sectionMap[tituloNormalizado] = secaoAtual.linhas.slice();
-              secoes.push({
-                  titulo: secaoAtual.titulo,
-                  linhas: secaoAtual.linhas.slice(),
-              });
-          } else {
-              // Try to find previous content
-              if (sectionMap[tituloNormalizado]) {
-                  secoes.push({
-                      titulo: secaoAtual.titulo,
-                      linhas: sectionMap[tituloNormalizado].slice(),
-                  });
-              } else {
-                 // Keep empty if no previous content found (unlikely but safe)
-                 if (secaoAtual.titulo) {
-                     secoes.push({
-                        titulo: secaoAtual.titulo,
-                        linhas: [], // Or maybe keep it empty
-                     });
-                 }
-              }
-          }
-      } else if (possuiConteudo) {
-          secoes.push({
-              titulo: "",
-              linhas: secaoAtual.linhas.slice(),
-          });
+      fecharBloco();
+      if (secaoAtual.titulo || secaoAtual.blocos.length) {
+        secoes.push(secaoAtual);
       }
+      secaoAtual = null;
     };
 
     linhas.forEach((linha) => {
       const tituloMatch = linha.match(/^\s*\[(.+?)\]\s*$/);
       if (tituloMatch) {
-        if (secaoAtual) {
-          pushSecao();
-        }
-        secaoAtual = {
-          titulo: tituloMatch[1].trim(),
-          linhas: [],
-        };
-      } else {
-        if (!secaoAtual) {
-          secaoAtual = {
-            titulo: "",
-            linhas: [],
-          };
-        }
-        if (Cifra.isLinhaCifra(linha)) {
-          return;
-        }
-        const linhaTratada = linha.replace(/\s+$/, "");
-        secaoAtual.linhas.push(linhaTratada);
+        fecharSecao();
+        secaoAtual = { titulo: tituloMatch[1].trim(), blocos: [] };
+        return;
       }
+      if (!secaoAtual) {
+        secaoAtual = { titulo: "", blocos: [] };
+      }
+      if (Cifra.isLinhaCifra(linha)) {
+        return;
+      }
+      const conteudo = linha.replace(/\s+$/, "");
+      if (!conteudo.trim().length) {
+        fecharBloco();
+        return;
+      }
+      if (!blocoAtual) {
+        blocoAtual = [];
+      }
+      blocoAtual.push(conteudo);
     });
 
-    pushSecao();
-
-    if (!secoes.length && texto.trim().length) {
-      return buildSlides([{
-          titulo: "Letra",
-          linhas: linhas,
-      }]);
-    }
-
-    return buildSlides(secoes);
+    fecharSecao();
+    return secoes;
   };
 
-  const buildSlides = (sections) => {
-      if (!appState.compactMode) {
-          // Normal mode: 1 section = 1 slide (mostly)
-          return sections;
+  /**
+   * Compatibilidade: uma secao com titulo mas SEM conteudo (ex.: [Refrao]
+   * repetido vazio) reutiliza o conteudo da primeira ocorrencia com mesmo
+   * nome. Secoes sem conteudo e sem correspondencia sao descartadas.
+   */
+  const resolverRepeticoes = (secoes) => {
+    const mapa = {};
+    secoes.forEach((secao) => {
+      const chave = normalizeText(secao.titulo);
+      if (secao.blocos.length && !mapa[chave]) {
+        mapa[chave] = secao.blocos;
       }
+    });
+    return secoes
+      .map((secao) => {
+        if (secao.blocos.length) {
+          return secao;
+        }
+        const blocos = mapa[normalizeText(secao.titulo)];
+        return blocos ? { titulo: secao.titulo, blocos } : secao;
+      })
+      .filter((secao) => secao.blocos.length);
+  };
 
-      // Compact Mode: Merge sections
-      const slides = [];
-      let currentSlide = { titulo: "", linhas: [] };
-      // Heuristic limit for a "full" compact slide (2 cols ~ 36 lines)
-      // Reverted to fixed limit which was more stable
-      const MAX_LINES = 36; 
+  /**
+   * Aplica a metadata "Ordem:" expandindo/reordenando as secoes pelo nome.
+   * Secoes repetidas (ex.: Refrao) sao reutilizadas a partir da primeira
+   * ocorrencia com conteudo. Sem "Ordem:" mantem a ordem do documento.
+   */
+  const montarSequencia = (secoes, ordem) => {
+    if (!ordem || !ordem.length) {
+      return secoes;
+    }
+    const mapa = {};
+    secoes.forEach((secao) => {
+      const chave = normalizeText(secao.titulo);
+      if (secao.blocos.length && !mapa[chave]) {
+        mapa[chave] = secao;
+      }
+    });
+    const sequencia = [];
+    ordem.forEach((nome) => {
+      const secao = mapa[normalizeText(nome)];
+      if (secao) {
+        sequencia.push({ titulo: secao.titulo, blocos: secao.blocos });
+      }
+    });
+    return sequencia.length ? sequencia : secoes;
+  };
 
-      sections.forEach((section, index) => {
-          // Check if adding this section exceeds limit
-          const newLinesCount = currentSlide.linhas.length + section.linhas.length + (currentSlide.linhas.length > 0 ? 2 : 0); // +2 for spacing/title
-
-          if (currentSlide.linhas.length > 0 && newLinesCount > MAX_LINES) {
-              slides.push(currentSlide);
-              currentSlide = { titulo: "", linhas: [] };
-          }
-
-          if (currentSlide.linhas.length > 0) {
-              currentSlide.linhas.push(""); // Spacer
-          }
-          
-          if (section.titulo) {
-             currentSlide.linhas.push(`[${section.titulo}]`);
-          }
-          currentSlide.linhas.push(...section.linhas);
-          
-          // Propagate main title if it's the very first slide
-          if (slides.length === 0 && currentSlide.linhas.length === section.linhas.length + (section.titulo ? 1 : 0)) {
-               currentSlide.titulo = section.titulo;
-          }
+  /**
+   * Converte secoes ordenadas em slides. Cada slide tem uma lista de
+   * "elementos" ({ tipo: "header" } ou { tipo: "estrofe", linhas }).
+   * No modo normal cada secao vira um slide; no compacto as secoes sao
+   * mescladas ate o orcamento de linhas, sempre preservando estrofes inteiras.
+   */
+  const buildSlides = (secoes) => {
+    const elementosDaSecao = (secao, incluirHeader) => {
+      const elementos = [];
+      if (incluirHeader && secao.titulo) {
+        elementos.push({ tipo: "header", texto: secao.titulo });
+      }
+      secao.blocos.forEach((linhas) => {
+        elementos.push({ tipo: "estrofe", linhas });
       });
+      return elementos;
+    };
 
-      if (currentSlide.linhas.length > 0) {
-          slides.push(currentSlide);
+    if (!appState.compactMode) {
+      const slides = secoes
+        .map((secao) => ({
+          titulo: secao.titulo,
+          elementos: elementosDaSecao(secao, false),
+        }))
+        .filter((slide) => slide.elementos.length || slide.titulo);
+      // Modo normal: o titulo da musica fica num slide proprio, no inicio.
+      if (appState.songTitle) {
+        slides.unshift({ titulo: appState.songTitle, elementos: [], isTitle: true });
       }
-
       return slides;
+    }
+
+    const slides = [];
+    let atual = null;
+    const novoSlide = () => {
+      atual = { titulo: "", elementos: [] };
+    };
+    novoSlide();
+
+    secoes.forEach((secao) => {
+      const elementos = elementosDaSecao(secao, true);
+      const custo = elementos.reduce(
+        (total, el) => total + contarLinhasElemento(el),
+        0
+      );
+      const atualCusto = contarLinhasSlide(atual);
+      if (atualCusto > 0 && atualCusto + custo > COMPACT_LINE_BUDGET) {
+        slides.push(atual);
+        novoSlide();
+      }
+      elementos.forEach((el) => {
+        if (!atual.titulo && el.tipo === "header") {
+          atual.titulo = el.texto;
+        }
+        atual.elementos.push(el);
+      });
+    });
+
+    if (atual.elementos.length) {
+      slides.push(atual);
+    }
+    return slides.length ? slides : [{ titulo: "", elementos: [] }];
+  };
+
+  const parseSlidesFromText = (texto) => {
+    const secoes = resolverRepeticoes(parseSecoes(texto));
+    if (!secoes.length) {
+      const linhas = texto
+        .split(/\r?\n/)
+        .map((linha) => linha.replace(/\s+$/, ""))
+        .filter((linha) => linha.trim().length);
+      if (!linhas.length) {
+        return [];
+      }
+      return buildSlides([{ titulo: "", blocos: [linhas] }]);
+    }
+    const ordenadas = montarSequencia(secoes, appState.songOrdem);
+    return buildSlides(ordenadas);
+  };
+
+  /**
+   * (Re)constroi os slides a partir do texto da musica corrente, separando o
+   * titulo (primeira linha nao vazia) do corpo da letra.
+   */
+  const construirSlides = () => {
+    const data = appState.cifraOriginal || "";
+    const linhasData = data.split(/\r?\n/);
+    const idxTitulo = linhasData.findIndex((linha) => linha.trim().length);
+    appState.songTitle = idxTitulo >= 0 ? linhasData[idxTitulo].trim() : "";
+    const corpo = idxTitulo >= 0 ? linhasData.slice(idxTitulo + 1).join("\n") : data;
+    appState.slides = parseSlidesFromText(corpo);
+    appState.currentSlideIndex = 0;
   };
 
   const escapeHtml = (unsafe) => {
@@ -218,7 +297,9 @@ window.addEventListener("DOMContentLoaded", () => {
       .toLowerCase();
   };
 
-  const TOM_METADATA_REGEX = /^\s*Tom:\s*([A-G](?:#|b)?)\s*$/i;
+  const TOM_METADATA_REGEX = /^\s*Tom:\s*([A-G](?:#|b)?m?)\s*$/i;
+  const ORDEM_METADATA_REGEX = /^\s*Ordem:\s*(.+)$/i;
+  const FONTE_METADATA_REGEX = /^\s*Fonte:\s*(.+)$/i;
 
   const normalizeTom = (rawTom) => {
     if (!rawTom) {
@@ -232,10 +313,43 @@ window.addEventListener("DOMContentLoaded", () => {
     return dicionarioTons[normalized] ? normalized : null;
   };
 
+  // "Ordem: Intro > Estrofe 1 > Refrao" (aceita ">" ou "," como separador).
+  const parseOrdem = (raw) => {
+    if (!raw) {
+      return null;
+    }
+    const nomes = raw
+      .split(/[>,]/)
+      .map((nome) => nome.trim())
+      .filter(Boolean);
+    return nomes.length ? nomes : null;
+  };
+
+  // "Fonte: auto" (encaixe automatico) ou "Fonte: 90%" / "Fonte: 0.9".
+  const parseFonte = (raw) => {
+    if (!raw) {
+      return null;
+    }
+    const trimmed = raw.trim().toLowerCase();
+    if (trimmed === "auto" || trimmed === "automatica" || trimmed === "automática") {
+      return null;
+    }
+    let valor = parseFloat(trimmed.replace(",", "."));
+    if (Number.isNaN(valor)) {
+      return null;
+    }
+    if (trimmed.includes("%") || valor > 3) {
+      valor = valor / 100;
+    }
+    return Math.min(2.5, Math.max(0.3, valor));
+  };
+
   /**
-   * Extrai o metadado "Tom: X" logo apos o titulo e remove essa linha do texto.
+   * Extrai metadados ("Tom:", "Ordem:", "Fonte:") do cabecalho (linhas logo
+   * apos o titulo, antes da primeira linha em branco ou secao) e remove essas
+   * linhas do texto.
    * @param {string} rawText
-   * @returns {{tom: (string|null), text: string}}
+   * @returns {{tom:(string|null), ordem:(string[]|null), fontScale:(number|null), text:string}}
    */
   const parseSongMetadata = (rawText) => {
     const lines = rawText.split(/\r?\n/);
@@ -248,39 +362,79 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     let tom = null;
-    let metadataIndex = -1;
+    let ordem = null;
+    let fontScale = null;
+    const metadataIndexes = [];
+
     if (titleIndex !== -1) {
       for (let i = titleIndex + 1; i < lines.length; i += 1) {
         const trimmed = lines[i].trim();
-        if (!trimmed.length) {
-          continue;
+        if (!trimmed.length || /^\[.+\]$/.test(trimmed)) {
+          break;
         }
-        const match = trimmed.match(TOM_METADATA_REGEX);
-        if (match) {
-          tom = normalizeTom(match[1]);
-          metadataIndex = i;
+        const tomMatch = trimmed.match(TOM_METADATA_REGEX);
+        const ordemMatch = trimmed.match(ORDEM_METADATA_REGEX);
+        const fonteMatch = trimmed.match(FONTE_METADATA_REGEX);
+        if (tomMatch) {
+          tom = normalizeTom(tomMatch[1]);
+          metadataIndexes.push(i);
+        } else if (ordemMatch) {
+          ordem = parseOrdem(ordemMatch[1]);
+          metadataIndexes.push(i);
+        } else if (fonteMatch) {
+          fontScale = parseFonte(fonteMatch[1]);
+          metadataIndexes.push(i);
+        } else {
+          // Linha que nao e metadado conhecido encerra o cabecalho.
+          break;
         }
-        break;
       }
     }
 
-    if (metadataIndex !== -1) {
-      lines.splice(metadataIndex, 1);
-    }
+    metadataIndexes
+      .sort((a, b) => b - a)
+      .forEach((index) => lines.splice(index, 1));
 
     return {
       tom,
+      ordem,
+      fontScale,
       text: lines.join("\n"),
     };
   };
 
   const storeSongContent = (nome, rawText) => {
-    const { tom, text } = parseSongMetadata(rawText);
-    songCache[nome] = text;
-    if (tom) {
-      songMetaCache[nome] = tom;
+    const meta = parseSongMetadata(rawText);
+    songCache[nome] = meta.text;
+    songMetaCache[nome] = {
+      tom: meta.tom,
+      ordem: meta.ordem,
+      fontScale: meta.fontScale,
+    };
+    return meta;
+  };
+
+  const baseFontScale = () =>
+    appState.songFontScale && appState.songFontScale > 0
+      ? appState.songFontScale
+      : DEFAULT_SLIDE_FONT_SCALE;
+
+  /**
+   * Aplica os metadados da musica ao estado: tom (com fallback), ordem dos
+   * trechos e escala de fonte base usada como ponto de partida nos slides.
+   */
+  const applySongMeta = (nome, meta, fallbackTom) => {
+    const tom = (meta && meta.tom) || fallbackTom || DEFAULT_TOM;
+    appState.tom = tom;
+    appState.tomOriginal = tom;
+    tomInput.value = tom;
+    const entry = bancoDeCifras.find((item) => item.nome === nome);
+    if (entry) {
+      entry.tom = tom;
     }
-    return { tom, text };
+    appState.songOrdem = (meta && meta.ordem) || null;
+    appState.songFontScale = (meta && meta.fontScale) || 1;
+    appState.fontScale = baseFontScale();
   };
 
   const extractSongNamesFromHtml = (html) => {
@@ -363,19 +517,6 @@ window.addEventListener("DOMContentLoaded", () => {
       songsListingPromise = loadSongBank();
     }
     return songsListingPromise;
-  };
-
-  const setSongTom = (nome, tom) => {
-    if (!tom) {
-      return;
-    }
-    appState.tom = tom;
-    appState.tomOriginal = tom;
-    tomInput.value = tom;
-    const entry = bancoDeCifras.find((item) => item.nome === nome);
-    if (entry) {
-      entry.tom = tom;
-    }
   };
 
   const preloadSongs = async () => {
@@ -560,26 +701,28 @@ window.addEventListener("DOMContentLoaded", () => {
     // Update Body Class for CSS overrides
     if (isModoCifra) {
       document.body.classList.remove("mode-letra");
-      resetCompactFitOverrides();
+      resetFitOverrides();
       renderCifraView();
       updateCifraStyles();
     } else {
       document.body.classList.add("mode-letra");
       if (appState.compactMode) {
-        appState.fontScale = DEFAULT_SLIDE_FONT_SCALE;
+        appState.fontScale = baseFontScale();
         appState.lineHeight = DEFAULT_SLIDE_LINE_HEIGHT;
       }
+      // Reconstroi para descartar paginacoes acumuladas em sessoes anteriores.
+      construirSlides();
       renderSlide();
     }
   };
 
-  const resetCompactFitOverrides = () => {
+  const resetFitOverrides = () => {
     if (!slideContent) {
       return;
     }
     slideContent.style.removeProperty("--slide-font-size");
     slideContent.style.removeProperty("--slide-line-height");
-    slideContent.removeAttribute("data-compact-overflow");
+    slideContent.removeAttribute("data-slide-overflow");
   };
 
   const contentFitsSlide = () => {
@@ -589,103 +732,64 @@ window.addEventListener("DOMContentLoaded", () => {
     const widthOverflow = slideContent.scrollWidth - slideContent.clientWidth;
     const heightOverflow = slideContent.scrollHeight - slideContent.clientHeight;
     return (
-      widthOverflow <= COMPACT_FIT_LIMITS.overflowTolerancePx &&
-      heightOverflow <= COMPACT_FIT_LIMITS.overflowTolerancePx
+      widthOverflow <= FIT_LIMITS.overflowTolerancePx &&
+      heightOverflow <= FIT_LIMITS.overflowTolerancePx
     );
   };
 
-  const trimEmptyEdges = (lines) => {
-    const trimmed = lines.slice();
-    while (trimmed.length && !trimmed[0].trim().length) {
-      trimmed.shift();
-    }
-    while (trimmed.length && !trimmed[trimmed.length - 1].trim().length) {
-      trimmed.pop();
-    }
-    return trimmed;
-  };
-
-  const findCompactSplitIndex = (lines) => {
-    const mid = Math.floor(lines.length / 2);
-    const isEmpty = (line) => !line.trim().length;
-    const isHeader = (line) => /^\s*\[.+\]\s*$/.test(line);
-    let splitIndex = -1;
-
-    for (let offset = 0; offset <= mid; offset += 1) {
-      const forward = mid + offset;
-      const backward = mid - offset;
-      if (forward < lines.length && isEmpty(lines[forward])) {
-        splitIndex = forward + 1;
-        break;
-      }
-      if (backward >= 0 && isEmpty(lines[backward])) {
-        splitIndex = backward + 1;
-        break;
-      }
-    }
-
-    if (splitIndex === -1) {
-      for (let offset = 0; offset <= mid; offset += 1) {
-        const forward = mid + offset;
-        const backward = mid - offset;
-        if (forward < lines.length && isHeader(lines[forward])) {
-          splitIndex = forward;
-          break;
-        }
-        if (backward >= 0 && isHeader(lines[backward])) {
-          splitIndex = backward;
-          break;
-        }
-      }
-    }
-
-    if (splitIndex <= 0 || splitIndex >= lines.length) {
-      splitIndex = mid;
-    }
-
-    return splitIndex;
-  };
-
-  const paginateCompactSlide = () => {
-    if (compactPaginationInProgress) {
+  /**
+   * Divide o slide atual em dois, em uma fronteira ENTRE elementos (estrofes /
+   * cabecalhos) proxima do meio. Nunca quebra uma estrofe ao meio. Evita
+   * deixar um cabecalho orfao no fim do primeiro slide.
+   */
+  const paginateSlide = () => {
+    if (paginationInProgress) {
       return false;
     }
-    const currentSlide = appState.slides[appState.currentSlideIndex];
-    if (!currentSlide || currentSlide.linhas.length < 2) {
+    const slide = appState.slides[appState.currentSlideIndex];
+    if (!slide || slide.elementos.length < 2) {
       return false;
     }
 
-    const splitIndex = findCompactSplitIndex(currentSlide.linhas);
-    const firstLines = trimEmptyEdges(currentSlide.linhas.slice(0, splitIndex));
-    const secondLines = trimEmptyEdges(currentSlide.linhas.slice(splitIndex));
+    let splitIndex = Math.floor(slide.elementos.length / 2);
+    if (
+      slide.elementos[splitIndex - 1] &&
+      slide.elementos[splitIndex - 1].tipo === "header"
+    ) {
+      splitIndex -= 1;
+    }
+    if (splitIndex <= 0) {
+      splitIndex = 1;
+    }
 
-    if (!firstLines.length || !secondLines.length) {
+    const primeiros = slide.elementos.slice(0, splitIndex);
+    const segundos = slide.elementos.slice(splitIndex);
+    if (!primeiros.length || !segundos.length) {
       return false;
     }
 
-    compactPaginationInProgress = true;
-    const firstSlide = { titulo: currentSlide.titulo, linhas: firstLines };
-    const secondSlide = { titulo: currentSlide.titulo, linhas: secondLines };
+    paginationInProgress = true;
     appState.slides.splice(
       appState.currentSlideIndex,
       1,
-      firstSlide,
-      secondSlide
+      { titulo: slide.titulo, elementos: primeiros },
+      { titulo: slide.titulo, elementos: segundos }
     );
     renderSlide();
-    compactPaginationInProgress = false;
+    paginationInProgress = false;
     return true;
   };
 
   /**
-   * Ajusta line-height e font-size para encaixar o conteudo sem rolagem,
-   * priorizando reduzir o line-height antes do font-size.
+   * Ajusta line-height e font-size para encaixar o conteudo do slide sem
+   * rolagem, priorizando reduzir o line-height antes do font-size. Vale para
+   * os modos compacto E normal: a letra deve sempre caber na tela.
    */
-  const applyCompactShrinkToFit = () => {
-    if (!slideContent || appState.modo !== "letra" || !appState.compactMode) {
+  const applyShrinkToFit = () => {
+    if (!slideContent || appState.modo !== "letra") {
       return;
     }
-    if (compactPaginationInProgress) {
+    if (paginationInProgress) {
       return;
     }
 
@@ -709,34 +813,31 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     const minLineHeightRatio = Math.min(
-      COMPACT_FIT_LIMITS.minLineHeightRatio,
+      FIT_LIMITS.minLineHeightRatio,
       lineHeightRatio
     );
     let fontSizePx = baseFontSizePx;
-    const minFontSizePx = Math.min(
-      COMPACT_FIT_LIMITS.minFontSizePx,
-      fontSizePx
-    );
+    const minFontSizePx = Math.min(FIT_LIMITS.minFontSizePx, fontSizePx);
 
     if (contentFitsSlide()) {
       return;
     }
 
     let iterations = 0;
-    while (!contentFitsSlide() && iterations < COMPACT_FIT_LIMITS.maxIterations) {
-      if (lineHeightRatio - COMPACT_FIT_LIMITS.lineHeightStep >= minLineHeightRatio) {
+    while (!contentFitsSlide() && iterations < FIT_LIMITS.maxIterations) {
+      if (lineHeightRatio - FIT_LIMITS.lineHeightStep >= minLineHeightRatio) {
         lineHeightRatio = Math.max(
           minLineHeightRatio,
-          lineHeightRatio - COMPACT_FIT_LIMITS.lineHeightStep
+          lineHeightRatio - FIT_LIMITS.lineHeightStep
         );
         slideContent.style.setProperty(
           "--slide-line-height",
           lineHeightRatio.toFixed(3)
         );
-      } else if (fontSizePx - COMPACT_FIT_LIMITS.fontSizeStep >= minFontSizePx) {
+      } else if (fontSizePx - FIT_LIMITS.fontSizeStep >= minFontSizePx) {
         fontSizePx = Math.max(
           minFontSizePx,
-          fontSizePx - COMPACT_FIT_LIMITS.fontSizeStep
+          fontSizePx - FIT_LIMITS.fontSizeStep
         );
         slideContent.style.setProperty(
           "--slide-font-size",
@@ -749,36 +850,39 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!contentFitsSlide()) {
-      if (paginateCompactSlide()) {
+      // Tenta dividir em mais slides (sempre entre estrofes inteiras).
+      if (paginateSlide()) {
         return;
       }
-      slideContent.dataset.compactOverflow = "true";
-      console.error(
-        "Compact fit falhou: minimo de fonte/altura atingido. Considere paginar."
+      // Ultimo recurso: uma unica estrofe maior que a tela mesmo na fonte
+      // minima. Libera rolagem para nao cortar o texto.
+      slideContent.dataset.slideOverflow = "true";
+      console.warn(
+        "Encaixe atingiu o minimo de fonte/altura em uma estrofe indivisivel; rolagem liberada."
       );
     }
   };
 
-  const scheduleCompactFit = () => {
+  const scheduleFit = () => {
     if (!slideContent) {
       return;
     }
-    if (!appState.compactMode || appState.modo !== "letra") {
-      if (compactFitFrameId !== null) {
-        cancelAnimationFrame(compactFitFrameId);
-        compactFitFrameId = null;
+    if (appState.modo !== "letra") {
+      if (fitFrameId !== null) {
+        cancelAnimationFrame(fitFrameId);
+        fitFrameId = null;
       }
-      resetCompactFitOverrides();
+      resetFitOverrides();
       return;
     }
 
-    resetCompactFitOverrides();
-    if (compactFitFrameId !== null) {
-      cancelAnimationFrame(compactFitFrameId);
+    resetFitOverrides();
+    if (fitFrameId !== null) {
+      cancelAnimationFrame(fitFrameId);
     }
-    compactFitFrameId = requestAnimationFrame(() => {
-      compactFitFrameId = null;
-      applyCompactShrinkToFit();
+    fitFrameId = requestAnimationFrame(() => {
+      fitFrameId = null;
+      applyShrinkToFit();
     });
   };
 
@@ -800,20 +904,25 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
     
-    // Auto column logic
+    // Logica de colunas: 2 colunas exigem largura minima (telas estreitas
+    // ficam ilegiveis em 2 colunas). Abaixo do limite, sempre 1 coluna,
+    // mesmo que o usuario tenha escolhido 2.
+    const larguraSuficiente =
+      slideContent.clientWidth >= MIN_TWO_COLUMN_WIDTH;
+    // Expoe ao CSS se 2 colunas sao possiveis (controle de colunas so aparece
+    // quando pode ter efeito).
+    document.body.classList.toggle("can-two-columns", larguraSuficiente);
     let useTwoColumns = false;
-    if (appState.columnLayout === "2") {
+    if (larguraSuficiente) {
+      if (appState.columnLayout === "2") {
         useTwoColumns = true;
-    } else if (appState.columnLayout === "auto") {
-        // Simple heuristic: lines count > 20 or text length > 500
+      } else if (appState.columnLayout === "auto") {
+        // Heuristica: muitas linhas viram duas colunas (estrofes inteiras por coluna).
         const currentSlide = appState.slides[appState.currentSlideIndex];
-        if (currentSlide) {
-            const lines = currentSlide.linhas.length;
-            const textLen = currentSlide.linhas.join("").length;
-            if (lines > 16 || textLen > 500) {
-                useTwoColumns = true;
-            }
+        if (currentSlide && contarLinhasSlide(currentSlide) > 16) {
+          useTwoColumns = true;
         }
+      }
     }
 
     slideContent.classList.toggle("two-columns", useTwoColumns);
@@ -827,7 +936,7 @@ window.addEventListener("DOMContentLoaded", () => {
       appState.lineHeight
     );
     fontSizeValue.textContent = `${Math.round(appState.fontScale * 100)}%`;
-    scheduleCompactFit();
+    scheduleFit();
   };
 
   const updateSlideNavigationState = () => {
@@ -853,35 +962,28 @@ window.addEventListener("DOMContentLoaded", () => {
     slideTitle.textContent = titulo;
     slidePosition.textContent = `${appState.currentSlideIndex + 1} / ${appState.slides.length}`;
 
-    // Special handling for the first slide (Title Slide)
-    if (appState.currentSlideIndex === 0 && !appState.compactMode) {
-        slideContent.classList.add("title-slide");
+    // Slide de titulo dedicado (modo normal): so o nome da musica.
+    const isTitleSlide = Boolean(slide.isTitle);
+    slideContent.classList.toggle("title-slide", isTitleSlide);
+
+    let html = "";
+    if (isTitleSlide) {
+      html += `<h1 class="slide-main-title">${escapeHtml(appState.songTitle)}</h1>`;
+    } else if (!slide.elementos.length) {
+      html += "<p>&nbsp;</p>";
     } else {
-        slideContent.classList.remove("title-slide");
+      slide.elementos.forEach((elemento) => {
+        if (elemento.tipo === "header") {
+          html += `<h4 class="compact-header">${escapeHtml(elemento.texto)}</h4>`;
+          return;
+        }
+        // Estrofe: bloco indivisivel (break-inside: avoid via CSS).
+        const linhasHtml = elemento.linhas
+          .map((linha) => `<p>${escapeHtml(linha)}</p>`)
+          .join("");
+        html += `<div class="slide-stanza">${linhasHtml}</div>`;
+      });
     }
-
-    const linhas = slide.linhas.length ? slide.linhas : [""];
-    const html = linhas
-      .map((linha, index) => {
-        if (!linha.trim().length) {
-          return "<p class='empty-line'>&nbsp;</p>";
-        }
-        
-        // Handle Compact Mode headers
-        if (appState.compactMode) {
-          const headerMatch = linha.match(/^\[(.+)\]$/);
-          if (headerMatch) {
-            return `<h4 class="compact-header">${escapeHtml(headerMatch[1])}</h4>`;
-          }
-        }
-
-        // If it's the title slide and first line (Normal mode only)
-        if (appState.currentSlideIndex === 0 && index === 0 && !appState.compactMode) {
-             return `<h1 class="slide-main-title">${escapeHtml(linha)}</h1>`;
-        }
-        return `<p>${escapeHtml(linha)}</p>`;
-      })
-      .join("");
 
     slideContent.innerHTML = html;
     updateSlideStyles();
@@ -898,16 +1000,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Use cached if available
     if (songCache[nomeCifra]) {
-      const cachedTom = songMetaCache[nomeCifra] || fallbackTom;
-      setSongTom(nomeCifra, cachedTom);
+      applySongMeta(nomeCifra, songMetaCache[nomeCifra], fallbackTom);
       processCifraData(songCache[nomeCifra]);
     } else {
       fetch(`${SONGS_DIR}/${nomeCifra}.txt`)
         .then((response) => response.text())
         .then((data) => {
-          const { tom, text } = storeSongContent(nomeCifra, data);
-          setSongTom(nomeCifra, tom || fallbackTom);
-          processCifraData(text);
+          const meta = storeSongContent(nomeCifra, data);
+          applySongMeta(nomeCifra, meta, fallbackTom);
+          processCifraData(meta.text);
         })
         .catch((error) => {
           console.error(`Erro ao carregar ${nomeCifra}`, error);
@@ -926,9 +1027,8 @@ window.addEventListener("DOMContentLoaded", () => {
       updateCifraStyles();
     }
 
-    appState.slides = parseSlidesFromText(data);
-    appState.currentSlideIndex = 0;
-    
+    construirSlides();
+
     // If we are already in letra mode, render slide immediately
     if (appState.modo === "letra") {
         renderSlide();
@@ -998,7 +1098,20 @@ window.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (appState.modo === "letra") {
-      updateSlideStyles();
+      // Debounce: reconstroi os slides para a nova largura (descartando
+      // paginacoes feitas para a largura anterior) e reencaixa a letra.
+      if (resizeFrameId !== null) {
+        cancelAnimationFrame(resizeFrameId);
+      }
+      resizeFrameId = requestAnimationFrame(() => {
+        resizeFrameId = null;
+        if (appState.compactMode) {
+          appState.fontScale = baseFontScale();
+          appState.lineHeight = DEFAULT_SLIDE_LINE_HEIGHT;
+        }
+        construirSlides();
+        renderSlide();
+      });
     }
   });
 
@@ -1237,17 +1350,16 @@ window.addEventListener("DOMContentLoaded", () => {
     compactModeToggle.addEventListener("change", (e) => {
       appState.compactMode = e.target.checked;
       if (appState.compactMode) {
-        appState.fontScale = DEFAULT_SLIDE_FONT_SCALE;
+        appState.fontScale = baseFontScale();
         appState.lineHeight = DEFAULT_SLIDE_LINE_HEIGHT;
       }
       document.body.classList.toggle(
         "compact-mode",
         appState.compactMode && appState.modo === "letra"
       );
-      // Re-parse/build slides from original data
+      // Reconstroi os slides a partir do texto original com o novo modo.
       if (appState.cifraOriginal) {
-        appState.slides = parseSlidesFromText(appState.cifraOriginal);
-        appState.currentSlideIndex = 0;
+        construirSlides();
         renderSlide();
       }
     });
