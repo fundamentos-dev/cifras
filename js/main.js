@@ -300,6 +300,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const TOM_METADATA_REGEX = /^\s*Tom:\s*([A-G](?:#|b)?m?)\s*$/i;
   const ORDEM_METADATA_REGEX = /^\s*Ordem:\s*(.+)$/i;
   const FONTE_METADATA_REGEX = /^\s*Fonte:\s*(.+)$/i;
+  // "Link: https://..." referencia externa (ex.: Spotify/YouTube). Reconhecido e
+  // removido do corpo; a interface ainda nao o exibe.
+  const LINK_METADATA_REGEX = /^\s*Link:\s*(.+)$/i;
 
   const normalizeTom = (rawTom) => {
     if (!rawTom) {
@@ -364,6 +367,7 @@ window.addEventListener("DOMContentLoaded", () => {
     let tom = null;
     let ordem = null;
     let fontScale = null;
+    let link = null;
     const metadataIndexes = [];
 
     if (titleIndex !== -1) {
@@ -375,6 +379,7 @@ window.addEventListener("DOMContentLoaded", () => {
         const tomMatch = trimmed.match(TOM_METADATA_REGEX);
         const ordemMatch = trimmed.match(ORDEM_METADATA_REGEX);
         const fonteMatch = trimmed.match(FONTE_METADATA_REGEX);
+        const linkMatch = trimmed.match(LINK_METADATA_REGEX);
         if (tomMatch) {
           tom = normalizeTom(tomMatch[1]);
           metadataIndexes.push(i);
@@ -383,6 +388,9 @@ window.addEventListener("DOMContentLoaded", () => {
           metadataIndexes.push(i);
         } else if (fonteMatch) {
           fontScale = parseFonte(fonteMatch[1]);
+          metadataIndexes.push(i);
+        } else if (linkMatch) {
+          link = linkMatch[1].trim();
           metadataIndexes.push(i);
         } else {
           // Linha que nao e metadado conhecido encerra o cabecalho.
@@ -399,6 +407,7 @@ window.addEventListener("DOMContentLoaded", () => {
       tom,
       ordem,
       fontScale,
+      link,
       text: lines.join("\n"),
     };
   };
